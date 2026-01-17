@@ -1,0 +1,61 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Shop {
+  id          String @id @default(cuid())
+  name        String @unique // "Hareruya", "BigMagic", "CardRush"
+  url         String 
+  prices      Price[]
+}
+
+model Card {
+  id        String   @id @default(cuid())
+  name      String
+  oracleId  String?  // Scryfall Oracle ID
+  variants  CardVariant[] 
+}
+
+model CardVariant {
+  id              String   @id @default(cuid())
+  cardId          String
+  card            Card     @relation(fields: [cardId], references: [id])
+  
+  scryfallId      String?
+  setCode         String   // "ECL"
+  collectorNumber String   // "101", "256", etc.
+  
+  language        String   // "JP", "EN"
+  isFoil          Boolean  @default(false)
+  
+  image           String? 
+  prices          Price[]
+  
+  @@unique([setCode, collectorNumber, language, isFoil])
+}
+
+model Price {
+  id              String      @id @default(cuid())
+  variantId       String
+  variant         CardVariant @relation(fields: [variantId], references: [id])
+  
+  shopId          String
+  shop            Shop        @relation(fields: [shopId], references: [id])
+  
+  priceYen        Int
+  buyPriceYen     Int?
+  stock           Int         @default(0)
+  
+  sourceUrl       String? 
+  
+  timestamp       DateTime    @default(now())
+  
+  @@index([variantId])
+  @@index([shopId])
+}
