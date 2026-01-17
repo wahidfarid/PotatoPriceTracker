@@ -110,7 +110,7 @@ export async function scrapeHareruyaSet(
                     collectorNumber = parseInt(collectorNumber, 10).toString();
                 }
 
-                let variants = [];
+                let variants: any[] = [];
 
                 if (collectorNumber) {
                     variants = await prisma.cardVariant.findMany({

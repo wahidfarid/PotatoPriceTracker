@@ -37,7 +37,7 @@ export async function scrapeCardRushSet(
 
                     const titleEl = await item.$('.item_name_area a');
                     const title = await titleEl?.textContent();
-                    const href = await item.$eval('.item_name_area a', a => a.href);
+                    const href = await item.$eval('.item_name_area a', (a) => (a as HTMLAnchorElement).href);
                     const priceEl = await item.$('.selling_price .figure');
                     const priceText = await priceEl?.textContent();
 
@@ -66,7 +66,7 @@ export async function scrapeCardRushSet(
                     const priceYen = parseInt(priceText.replace(/[^\d]/g, ''));
 
                     // Find Variant
-                    const variants = await prisma.cardVariant.findMany({
+                    const variants: any[] = await prisma.cardVariant.findMany({
                         where: {
                             card: { name: { contains: cardName } }, // Fuzzy match
                             language: lang,
