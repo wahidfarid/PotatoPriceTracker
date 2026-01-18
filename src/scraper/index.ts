@@ -2,6 +2,7 @@
 import { PrismaClient } from '@prisma/client';
 import { chromium } from 'playwright';
 import { scrapeHareruyaSet } from './shops/hareruya_set';
+import { scrapeHareruyaKaitori } from './shops/hareruya_kaitori';
 import { scrapeCardRushSet } from './shops/cardrush_set';
 
 const prisma = new PrismaClient();
@@ -17,6 +18,10 @@ export async function runScraper() {
             await scrapeHareruyaSet('ECL', prisma, browser);
             await scrapeHareruyaSet('ECC', prisma, browser);
             await scrapeHareruyaSet('SPG', prisma, browser);
+
+            await scrapeHareruyaKaitori('ECL', prisma, browser);
+            await scrapeHareruyaKaitori('ECC', prisma, browser);
+            await scrapeHareruyaKaitori('SPG', prisma, browser);
         } catch (e) {
             console.error('[Hareruya] Failed:', e);
         }

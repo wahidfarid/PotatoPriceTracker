@@ -134,7 +134,17 @@ export function CardList({ initialCards }: CardListProps) {
                                                     ) : <span className="text-gray-300">-</span>}
                                                 </td>
                                                 <td className="py-2 px-2 md:px-3 text-right font-mono text-gray-600 align-middle">
-                                                    {formatPrice(buyPrice)}
+                                                    {hareruyaPrice?.sellSourceUrl ? (
+                                                        <a
+                                                            href={hareruyaPrice.sellSourceUrl}
+                                                            target="_blank"
+                                                            className="hover:underline block py-1 font-bold text-gray-600 hover:text-gray-800"
+                                                        >
+                                                            {formatPrice(buyPrice)}
+                                                        </a>
+                                                    ) : (
+                                                        formatPrice(buyPrice)
+                                                    )}
                                                 </td>
                                             </tr>
                                         );

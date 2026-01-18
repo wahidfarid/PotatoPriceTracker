@@ -11,6 +11,8 @@ These rules are derived from the user's feedback and preferred interaction style
 - If in doubt, **always ask for clarification** before making destructive changes or large architectural shifts.
 - Keep artifact summaries and walkthroughs concise.
 - Acknowledge mistakes or backtracking clearly but briefly.
+- **No Looping**: If you find yourself repeating the same actions or getting stuck, immediately stop, explain why the current approach is failing, and ask for clarification. Do not loop.
+- **Investigation Transparency**: Always explain the "why" behind an investigation step if it takes more than one attempt.
 
 ## 3. Tech & Code Style
 - **Canonical Source**: Scryfall is the ONLY source for card names. Do not pull names from shop titles (like Hareruya's bilingual titles).

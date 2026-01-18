@@ -140,13 +140,27 @@ export async function scrapeHareruyaSet(
                 if (variants.length === 1) {
                     const v = variants[0];
                     const stock = parseInt(doc.stock || '0');
+
+                    // Find latest record with kaitori data to carry over
+                    const latestKaitori = await prisma.price.findFirst({
+                        where: {
+                            variantId: v.id,
+                            shopId: shop.id,
+                            buyPriceYen: { not: null },
+                            timestamp: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+                        },
+                        orderBy: { timestamp: 'desc' }
+                    });
+
                     await prisma.price.create({
                         data: {
                             variantId: v.id,
                             shopId: shop.id,
                             priceYen: priceYen,
                             stock: stock,
-                            sourceUrl: productUrl
+                            sourceUrl: productUrl,
+                            buyPriceYen: latestKaitori?.buyPriceYen,
+                            sellSourceUrl: latestKaitori?.sellSourceUrl
                         }
                     });
                 } else {

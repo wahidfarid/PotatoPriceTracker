@@ -1,5 +1,6 @@
 
-import fetch from 'node-fetch';
+// Native fetch available in Node 18+
+
 
 async function main() {
     const query = "ローウィン";
@@ -28,7 +29,7 @@ async function main() {
                     console.log('Not JSON');
                 }
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error('Fetch error:', e.message);
         }
         console.log('---');

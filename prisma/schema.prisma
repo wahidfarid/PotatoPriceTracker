@@ -53,6 +53,7 @@ model Price {
   stock           Int         @default(0)
   
   sourceUrl       String? 
+  sellSourceUrl   String?
   
   timestamp       DateTime    @default(now())
   
