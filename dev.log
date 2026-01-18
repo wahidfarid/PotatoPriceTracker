@@ -21,3 +21,4 @@ nohup: ignoring input
  GET / 200 in 1042ms (compile: 9ms, render: 1033ms)
  GET / 200 in 1824ms (compile: 6ms, render: 1818ms)
  GET / 200 in 1669ms (compile: 62ms, render: 1607ms)
+ GET / 200 in 1956ms (compile: 134ms, render: 1822ms)
