@@ -5,7 +5,7 @@ A specialized price tracking application for Magic: The Gathering, currently foc
 
 ## Core Tech Stack
 - **Framework**: Next.js 16+ (App Router)
-- **Database**: Prisma with SQLite (`dev.db`)
+- **Database**: Prisma with SQLite (`prisma/dev.db`)
 - **Scraping**: Playwright & Node Fetch (custom scrapers in `src/scraper`)
 - **Styling**: Vanilla CSS / Tailwind (mostly Tailwind for UI components)
 
@@ -17,7 +17,7 @@ A specialized price tracking application for Magic: The Gathering, currently foc
    - *Note*: collector numbers are normalized (e.g., `052` -> `52`) to match between Hareruya and DB.
 3. **Variants**: Every card has 4 variants in the DB: EN/JP and Foil/Non-Foil.
 4. **Shops**: 
-   - **Hareruya**: Active full-set scraper (`hareruya_set.ts`). Tracks Sell (Selling) and Buy (Kaitori) prices + Stock levels.
+   - **Hareruya**: Active full-set scraper (`hareruya_set.ts`). Tracks **Buying** (Shop's Selling Price) and **Selling** (Shop's Kaitori/Buyback Price) + Stock levels.
    - **CardRush**: Implementation started but suffers from timeouts/anti-bot.
 
 ## Database Schema
@@ -30,3 +30,4 @@ A specialized price tracking application for Magic: The Gathering, currently foc
 - Fixed search bar (English only).
 - Red price coloring for out-of-stock items.
 - Support for ECL, ECC, and restricted SPG-ECL (year:2026).
+- **Deployment**: Static SQLite hosting on Vercel with absolute path resolution in `src/lib/data.ts`.

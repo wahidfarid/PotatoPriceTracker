@@ -18,7 +18,8 @@ These rules are derived from the user's feedback and preferred interaction style
   - Base text size should be `text-sm` (slightly larger than standard Next.js default).
   - Use fixed headers/search bars for navigation in large lists.
 - **Commenting**: Do not add code comments unless explicitly requested.
-- **Stability**: When doing any code changes, always avoid regressions and make sure the existing code before the changes works as expected after the changes.
+- **Stability**: When doing any code changes, always avoid regressions. **Always run `npm run build` locally** to verify TypeScript integrity before suggesting a deployment.
+- **Terminology**: Use customer-centric labels in UI: **Buying** (Price paid to shop) and **Selling** (Price received from shop).
 
 ## 4. Workflows
 - **Seeding**: Always verify set codes on Scryfall before updating the seeder.

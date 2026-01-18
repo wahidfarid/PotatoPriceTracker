@@ -43,7 +43,7 @@ export function PriceChart({ data }: PriceChartProps) {
     const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300'];
 
     return (
-        <div className="w-full h-[400px]">
+        <div className="w-full h-[300px] md:h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" />
