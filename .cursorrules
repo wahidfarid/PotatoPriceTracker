@@ -1,0 +1,21 @@
+# Cursor rules (repo-local)
+#
+# This file is a compatibility shim for tools that still read legacy `.cursorrules`.
+# Source of truth lives in:
+# - `.agent/context.md`
+# - `.agent/rules.md`
+#
+# Cursor-native rules are mirrored in:
+# - `.cursor/rules/00-project-context.md`
+# - `.cursor/rules/01-collaboration-rules.md`
+
+## Project context (mirrored)
+- Domain: MTG price tracker; Scryfall is source of truth for names / CN / oracle IDs.
+- Matching: collector number + set + language + foil; normalize collector numbers (strip leading zeros).
+- Shops: Hareruya active; track Buying (shop sell price) vs Selling (shop buyback/kaitori).
+
+## Collaboration rules (mirrored)
+- Make minimal, surgical edits; don’t add features not requested.
+- Ask for clarification before destructive/large changes; don’t loop when stuck.
+- Don’t add code comments unless requested.
+- Run `npm run build` before suggesting deployment.

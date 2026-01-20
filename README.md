@@ -1,5 +1,10 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Agent / IDE Rules
+
+- Canonical project context + agent collaboration rules live in `.agent/` (`.agent/context.md`, `.agent/rules.md`).
+- Cursor mirrors those rules in `.cursor/rules/` for repo-local rule loading.
+
 ## Getting Started
 
 First, run the development server:
