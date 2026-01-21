@@ -5,9 +5,9 @@
 # - `.agent/context.md`
 # - `.agent/rules.md`
 #
-# Cursor-native rules are mirrored in:
-# - `.cursor/rules/00-project-context.md`
-# - `.cursor/rules/01-collaboration-rules.md`
+# Tool-specific rules are mirrored in:
+# - `.cursor/rules/00-project-context.md` & `.cursor/rules/01-collaboration-rules.md` (Cursor)
+# - `.claude/context.md` & `.claude/rules.md` (Claude Code)
 
 ## Project context (mirrored)
 - Domain: MTG price tracker; Scryfall is source of truth for names / CN / oracle IDs.

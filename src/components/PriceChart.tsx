@@ -8,6 +8,7 @@ interface PricePoint {
     timestamp: string | Date;
     priceYen: number;
     shopName: string;
+    buyPriceYen?: number | null;
 }
 
 interface PriceChartProps {
@@ -25,22 +26,37 @@ export function PriceChart({ data }: PriceChartProps) {
 
     const processedData: any[] = [];
     const shops = Array.from(new Set(data.map(d => d.shopName)));
+    const hasBuyPrices = data.some(d => d.buyPriceYen != null);
 
-    // Group by rough timestamp (e.g. hour)
+    // Group by day (since we're already aggregating by day in the API)
     const grouped = new Map<string, any>();
 
     data.forEach(d => {
-        const timeKey = format(new Date(d.timestamp), 'yyyy-MM-dd HH:mm');
+        const timeKey = format(new Date(d.timestamp), 'yyyy-MM-dd');
         if (!grouped.has(timeKey)) {
             grouped.set(timeKey, { time: timeKey, timestamp: new Date(d.timestamp).getTime() });
         }
         const entry = grouped.get(timeKey);
-        entry[d.shopName] = d.priceYen;
+        // For sell price, use shop name as key (supports multiple shops)
+        entry[`${d.shopName} (Sell)`] = d.priceYen;
+        // For buy price, add if available
+        if (d.buyPriceYen != null) {
+            entry[`${d.shopName} (Buy)`] = d.buyPriceYen;
+        }
     });
 
     const chartData = Array.from(grouped.values()).sort((a, b) => a.timestamp - b.timestamp);
 
-    const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300'];
+    // Determine which lines to show
+    const linesToShow: string[] = [];
+    shops.forEach(shop => {
+        linesToShow.push(`${shop} (Sell)`);
+        if (hasBuyPrices) {
+            linesToShow.push(`${shop} (Buy)`);
+        }
+    });
+
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
     return (
         <div className="w-full h-[300px] md:h-[400px]">
@@ -55,16 +71,20 @@ export function PriceChart({ data }: PriceChartProps) {
                         fontSize={12}
                     />
                     <YAxis domain={['auto', 'auto']} />
-                    <Tooltip />
+                    <Tooltip 
+                        formatter={(value: number | undefined) => value != null ? `¥${value.toLocaleString()}` : ''}
+                    />
                     <Legend />
-                    {shops.map((shop, index) => (
+                    {linesToShow.map((lineKey, index) => (
                         <Line
-                            key={shop}
+                            key={lineKey}
                             type="monotone"
-                            dataKey={shop}
+                            dataKey={lineKey}
                             stroke={colors[index % colors.length]}
                             strokeWidth={2}
                             connectNulls
+                            dot={false}
+                            activeDot={false}
                         />
                     ))}
                 </LineChart>

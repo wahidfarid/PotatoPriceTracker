@@ -2,6 +2,8 @@
 'use client';
 
 import { useState } from 'react';
+import { PriceHistoryModal } from './PriceHistoryModal';
+import { SparklineChart } from './SparklineChart';
 
 interface CardListProps {
     initialCards: any[];
@@ -9,6 +11,7 @@ interface CardListProps {
 
 export function CardList({ initialCards }: CardListProps) {
     const [search, setSearch] = useState('');
+    const [openModalCardId, setOpenModalCardId] = useState<string | null>(null);
 
     const filteredCards = initialCards.filter(card =>
         card.name.toLowerCase().includes(search.toLowerCase())
@@ -123,28 +126,42 @@ export function CardList({ initialCards }: CardListProps) {
                                                 <td className="py-2 px-2 md:px-3 font-bold text-gray-800 align-middle text-center">{variant.language}</td>
 
                                                 <td className="py-2 px-2 md:px-3 text-right font-mono border-l-2 border-gray-200 bg-gray-50/50 align-middle">
-                                                    {hareruyaPrice ? (
-                                                        <a
-                                                            href={hareruyaPrice.sourceUrl}
-                                                            target="_blank"
-                                                            className={`hover:underline block py-1 font-bold ${hareruyaPrice.stock === 0 ? 'text-red-500' : 'text-blue-600 hover:text-blue-800'}`}
-                                                        >
-                                                            {formatPrice(sellPrice)}
-                                                        </a>
-                                                    ) : <span className="text-gray-300">-</span>}
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {hareruyaPrice ? (
+                                                            <a
+                                                                href={hareruyaPrice.sourceUrl}
+                                                                target="_blank"
+                                                                className={`hover:underline font-bold ${hareruyaPrice.stock === 0 ? 'text-red-500' : 'text-blue-600 hover:text-blue-800'}`}
+                                                            >
+                                                                {formatPrice(sellPrice)}
+                                                            </a>
+                                                        ) : <span className="text-gray-300">-</span>}
+                                                        <SparklineChart 
+                                                            variantId={variant.id}
+                                                            data={variant.sparklineData || []}
+                                                            onClick={() => setOpenModalCardId(card.id)}
+                                                        />
+                                                    </div>
                                                 </td>
                                                 <td className="py-2 px-2 md:px-3 text-right font-mono text-gray-600 align-middle">
-                                                    {hareruyaPrice?.sellSourceUrl ? (
-                                                        <a
-                                                            href={hareruyaPrice.sellSourceUrl}
-                                                            target="_blank"
-                                                            className="hover:underline block py-1 font-bold text-gray-600 hover:text-gray-800"
-                                                        >
-                                                            {formatPrice(buyPrice)}
-                                                        </a>
-                                                    ) : (
-                                                        formatPrice(buyPrice)
-                                                    )}
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {hareruyaPrice?.sellSourceUrl ? (
+                                                            <a
+                                                                href={hareruyaPrice.sellSourceUrl}
+                                                                target="_blank"
+                                                                className="hover:underline font-bold text-gray-600 hover:text-gray-800"
+                                                            >
+                                                                {formatPrice(buyPrice)}
+                                                            </a>
+                                                        ) : (
+                                                            formatPrice(buyPrice)
+                                                        )}
+                                                        <SparklineChart 
+                                                            variantId={variant.id}
+                                                            data={variant.sparklineData || []}
+                                                            onClick={() => setOpenModalCardId(card.id)}
+                                                        />
+                                                    </div>
                                                 </td>
                                             </tr>
                                         );
@@ -162,6 +179,16 @@ export function CardList({ initialCards }: CardListProps) {
                     </div>
                 )}
             </div>
+
+            {openModalCardId && (
+                <PriceHistoryModal
+                    cardName={filteredCards.find(c => c.id === openModalCardId)?.name || ''}
+                    cardId={openModalCardId}
+                    variants={filteredCards.find(c => c.id === openModalCardId)?.variants || []}
+                    isOpen={true}
+                    onClose={() => setOpenModalCardId(null)}
+                />
+            )}
         </>
     );
 }
