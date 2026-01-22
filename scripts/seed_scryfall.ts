@@ -69,6 +69,11 @@ async function seedSet(setCode: string) {
                         }
                     });
 
+                    // Extract variant information
+                    const frameEffects = cardData.frame_effects?.join(',') || null;
+                    const promoTypes = cardData.promo_types?.join(',') || null;
+                    const finish = v.isFoil ? 'foil' : 'nonfoil';
+
                     if (!exists) {
                         await prisma.cardVariant.create({
                             data: {
@@ -78,7 +83,23 @@ async function seedSet(setCode: string) {
                                 language: l,
                                 isFoil: v.isFoil,
                                 scryfallId: cardData.id,
-                                image: cardData.image_uris?.normal || cardData.card_faces?.[0]?.image_uris?.normal
+                                image: cardData.image_uris?.normal || cardData.card_faces?.[0]?.image_uris?.normal,
+                                frameEffects: frameEffects,
+                                promoTypes: promoTypes,
+                                finish: finish
+                            }
+                        });
+                        count++;
+                    } else {
+                        // Update existing variant with new fields
+                        await prisma.cardVariant.update({
+                            where: { id: exists.id },
+                            data: {
+                                scryfallId: cardData.id,
+                                image: cardData.image_uris?.normal || cardData.card_faces?.[0]?.image_uris?.normal,
+                                frameEffects: frameEffects,
+                                promoTypes: promoTypes,
+                                finish: finish
                             }
                         });
                         count++;
@@ -93,7 +114,7 @@ async function seedSet(setCode: string) {
             hasMore = false;
         }
     }
-    console.log(`Seeded ${count} variants for set ${setCode.toUpperCase()}.`);
+    console.log(`Seeded/updated ${count} variants for set ${setCode.toUpperCase()}.`);
 }
 
 async function main() {

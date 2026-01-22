@@ -28,7 +28,7 @@ export async function getDashboardData() {
                 include: {
                     prices: {
                         orderBy: { timestamp: 'desc' },
-                        take: 1,
+                        take: 10, // Get latest prices from multiple shops
                         include: { shop: true }
                     }
                 },
