@@ -65,21 +65,30 @@ export function CardList({ initialCards }: CardListProps) {
                                         <th className="py-2 px-2 md:px-3 w-16 md:w-20 font-bold">Ver</th>
                                         <th className="py-2 px-2 md:px-3 w-8 md:w-12 font-bold">Ln</th>
                                         <th className="py-2 px-2 md:px-3 text-center border-l-2 border-gray-200 bg-gray-50" colSpan={2}>Hareruya</th>
+                                        <th className="py-2 px-2 md:px-3 text-center border-l-2 border-gray-200 bg-blue-50" colSpan={2}>CardRush</th>
                                     </tr>
                                     <tr className="bg-gray-50 text-gray-500 text-[10px] md:text-[11px] uppercase tracking-wider border-b border-gray-100">
                                         <th className="py-1 px-2 md:px-3"></th>
                                         <th className="py-1 px-2 md:px-3"></th>
                                         <th className="py-1 px-2 md:px-3"></th>
                                         <th className="py-1 px-2 md:px-3"></th>
+                                        {/* Hareruya */}
                                         <th className="py-1 px-2 md:px-3 text-right border-l-2 border-gray-200">Buy</th>
                                         <th className="py-1 px-2 md:px-3 text-right">Sell</th>
+                                        {/* CardRush */}
+                                        <th className="py-1 px-2 md:px-3 text-right border-l-2 border-gray-200 bg-blue-50">Buy</th>
+                                        <th className="py-1 px-2 md:px-3 text-right bg-blue-50">Sell</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {card.variants.map((variant: any, index: number, arr: any[]) => {
                                         const hareruyaPrice = variant.prices.find((p: any) => p.shop.name === 'Hareruya');
-                                        const sellPrice = hareruyaPrice?.priceYen;
-                                        const buyPrice = hareruyaPrice?.buyPriceYen;
+                                        const cardrushPrice = variant.prices.find((p: any) => p.shop.name === 'CardRush');
+
+                                        const hareruyaSell = hareruyaPrice?.priceYen;
+                                        const hareruyaBuy = hareruyaPrice?.buyPriceYen;
+                                        const cardrushSell = cardrushPrice?.priceYen;
+                                        const cardrushBuy = cardrushPrice?.buyPriceYen;
 
                                         const isFirstOfCollectorNumber = index === 0 || arr[index - 1].collectorNumber !== variant.collectorNumber;
 
@@ -125,38 +134,93 @@ export function CardList({ initialCards }: CardListProps) {
                                                 </td>
                                                 <td className="py-2 px-2 md:px-3 font-bold text-gray-800 align-middle text-center">{variant.language}</td>
 
+                                                {/* Hareruya Buy Price (Sell from shop to customer) */}
                                                 <td className="py-2 px-2 md:px-3 text-right font-mono border-l-2 border-gray-200 bg-gray-50/50 align-middle">
                                                     <div className="flex items-center justify-end gap-2">
                                                         {hareruyaPrice ? (
                                                             <a
                                                                 href={hareruyaPrice.sourceUrl}
                                                                 target="_blank"
+                                                                rel="noopener noreferrer"
                                                                 className={`hover:underline font-bold ${hareruyaPrice.stock === 0 ? 'text-red-500' : 'text-blue-600 hover:text-blue-800'}`}
                                                             >
-                                                                {formatPrice(sellPrice)}
+                                                                {formatPrice(hareruyaSell)}
                                                             </a>
                                                         ) : <span className="text-gray-300">-</span>}
-                                                        <SparklineChart 
+                                                        <SparklineChart
                                                             variantId={variant.id}
                                                             data={variant.sparklineData || []}
                                                             onClick={() => setOpenModalCardId(card.id)}
                                                         />
                                                     </div>
                                                 </td>
+
+                                                {/* Hareruya Sell Price (Buy from customer, kaitori) */}
                                                 <td className="py-2 px-2 md:px-3 text-right font-mono text-gray-600 align-middle">
                                                     <div className="flex items-center justify-end gap-2">
                                                         {hareruyaPrice?.sellSourceUrl ? (
                                                             <a
                                                                 href={hareruyaPrice.sellSourceUrl}
                                                                 target="_blank"
+                                                                rel="noopener noreferrer"
                                                                 className="hover:underline font-bold text-gray-600 hover:text-gray-800"
                                                             >
-                                                                {formatPrice(buyPrice)}
+                                                                {formatPrice(hareruyaBuy)}
                                                             </a>
                                                         ) : (
-                                                            formatPrice(buyPrice)
+                                                            formatPrice(hareruyaBuy)
                                                         )}
-                                                        <SparklineChart 
+                                                        <SparklineChart
+                                                            variantId={variant.id}
+                                                            data={variant.sparklineData || []}
+                                                            onClick={() => setOpenModalCardId(card.id)}
+                                                        />
+                                                    </div>
+                                                </td>
+
+                                                {/* CardRush Buy Price (Sell from shop to customer) */}
+                                                <td className="py-2 px-2 md:px-3 text-right font-mono border-l-2 border-gray-200 bg-blue-50/50 align-middle">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {cardrushPrice ? (
+                                                            <a
+                                                                href={cardrushPrice.sourceUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className={`hover:underline font-bold ${
+                                                                    cardrushPrice.stock === 0
+                                                                        ? 'text-red-500'
+                                                                        : 'text-blue-600 hover:text-blue-800'
+                                                                }`}
+                                                            >
+                                                                {formatPrice(cardrushSell)}
+                                                            </a>
+                                                        ) : (
+                                                            <span className="text-gray-300">-</span>
+                                                        )}
+                                                        <SparklineChart
+                                                            variantId={variant.id}
+                                                            data={variant.sparklineData || []}
+                                                            onClick={() => setOpenModalCardId(card.id)}
+                                                        />
+                                                    </div>
+                                                </td>
+
+                                                {/* CardRush Sell Price (Buy from customer, kaitori) */}
+                                                <td className="py-2 px-2 md:px-3 text-right font-mono text-gray-600 align-middle">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {cardrushPrice?.sellSourceUrl ? (
+                                                            <a
+                                                                href={cardrushPrice.sellSourceUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="hover:underline font-bold text-gray-600 hover:text-gray-800"
+                                                            >
+                                                                {formatPrice(cardrushBuy)}
+                                                            </a>
+                                                        ) : (
+                                                            formatPrice(cardrushBuy)
+                                                        )}
+                                                        <SparklineChart
                                                             variantId={variant.id}
                                                             data={variant.sparklineData || []}
                                                             onClick={() => setOpenModalCardId(card.id)}
