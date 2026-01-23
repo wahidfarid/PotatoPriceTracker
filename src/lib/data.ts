@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import path from 'path';
 import { format } from 'date-fns';
 
@@ -49,51 +49,54 @@ export async function getDashboardData() {
             
             // Fetch all prices for sparklines (last 30 days) - limit to avoid huge queries
             // Use select to only get what we need
-            const allPrices = await prisma.price.findMany({
-                where: {
-                    variantId: { in: variantIds },
-                    timestamp: { gte: thirtyDaysAgo }
-                },
-                select: {
-                    variantId: true,
-                    timestamp: true,
-                    priceYen: true,
-                    shop: {
-                        select: {
-                            name: true
-                        }
-                    }
-                },
-                orderBy: { timestamp: 'asc' },
-                take: 10000 // Safety limit - should be plenty for sparklines
-            });
+            // Note: timestamps are stored as Unix milliseconds (integers) in SQLite,
+            // so we need to compare with milliseconds, not Date objects
+            const thirtyDaysAgoMs = thirtyDaysAgo.getTime();
+
+            const allPrices = await prisma.$queryRaw<Array<{
+                variantId: string;
+                timestamp: bigint;
+                priceYen: number;
+                shopName: string;
+            }>>`
+                SELECT p.variantId, p.timestamp, p.priceYen, s.name as shopName
+                FROM Price p
+                JOIN Shop s ON p.shopId = s.id
+                WHERE p.variantId IN (${Prisma.join(variantIds)})
+                  AND p.timestamp >= ${thirtyDaysAgoMs}
+                  AND p.priceYen > 0
+                ORDER BY p.timestamp ASC
+                LIMIT 10000
+            `;
 
         // Group by variant and day, keeping last price per day
         const sparklineDataMap = new Map<string, any>();
         
         allPrices.forEach(price => {
             try {
-                const dayKey = format(new Date(price.timestamp), 'yyyy-MM-dd');
+                // Convert bigint timestamp to Date
+                const timestampMs = Number(price.timestamp);
+                const dayKey = format(new Date(timestampMs), 'yyyy-MM-dd');
                 const key = `${price.variantId}-${dayKey}`;
-                
+
                 if (!sparklineDataMap.has(key)) {
                     sparklineDataMap.set(key, {
                         variantId: price.variantId,
                         dayKey,
-                        timestamp: price.timestamp,
+                        timestamp: new Date(timestampMs),
                         priceYen: price.priceYen,
-                        shopName: price.shop.name
+                        shopName: price.shopName
                     });
                 } else {
                     const existing = sparklineDataMap.get(key)!;
                     // Keep the last price of the day
-                    if (new Date(price.timestamp) > new Date(existing.timestamp)) {
+                    if (timestampMs > new Date(existing.timestamp).getTime()) {
                         sparklineDataMap.set(key, {
                             variantId: price.variantId,
                             dayKey,
-                            timestamp: price.timestamp,
+                            timestamp: new Date(timestampMs),
                             priceYen: price.priceYen,
-                            shopName: price.shop.name
+                            shopName: price.shopName
                         });
                     }
                 }
@@ -127,11 +130,13 @@ export async function getDashboardData() {
                 const sparklineData = variantSparklines.get(variant.id) || [];
                 // Get Hareruya prices if available, otherwise use first shop
                 const hareruyaData = sparklineData.filter((p: any) => p.shopName === 'Hareruya');
-                (variant as any).sparklineData = (hareruyaData.length > 0 ? hareruyaData : sparklineData)
+                const finalData = (hareruyaData.length > 0 ? hareruyaData : sparklineData)
                     .map((p: any) => ({
                         price: p.priceYen,
                         timestamp: p.timestamp.toISOString()
                     }));
+
+                (variant as any).sparklineData = finalData;
             });
         });
         }

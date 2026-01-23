@@ -14,7 +14,10 @@ interface SparklineChartProps {
 }
 
 export function SparklineChart({ variantId, data = [], onClick, height = 30, width = 80 }: SparklineChartProps) {
-    if (data.length === 0) {
+    // Filter out zero/invalid prices defensively
+    const validData = data.filter(d => d.price > 0);
+
+    if (validData.length === 0) {
         return (
             <div
                 className="inline-block cursor-pointer hover:opacity-70 transition-opacity border border-gray-200 rounded"
@@ -30,7 +33,7 @@ export function SparklineChart({ variantId, data = [], onClick, height = 30, wid
     }
 
     // Calculate min/max for Y-axis scaling
-    const prices = data.map(d => d.price);
+    const prices = validData.map(d => d.price);
     const minPrice = Math.min(...prices);
     const maxPrice = Math.max(...prices);
     const priceRange = maxPrice - minPrice || 1; // Avoid division by zero
@@ -40,16 +43,16 @@ export function SparklineChart({ variantId, data = [], onClick, height = 30, wid
     const chartWidth = width - (padding * 2);
     const chartHeight = height - (padding * 2);
 
-    const points = data
+    const points = validData
         .map((point, index) => {
-            const x = padding + (index / (data.length - 1)) * chartWidth;
+            const x = padding + (index / (validData.length - 1)) * chartWidth;
             const y = padding + (1 - (point.price - minPrice) / priceRange) * chartHeight;
             return `${x},${y}`;
         })
         .join(' ');
 
     // Determine color based on trend (green for uptrend, red for downtrend)
-    const strokeColor = data[data.length - 1].price >= data[0].price ? "#10b981" : "#ef4444";
+    const strokeColor = validData[validData.length - 1].price >= validData[0].price ? "#10b981" : "#ef4444";
 
     return (
         <div

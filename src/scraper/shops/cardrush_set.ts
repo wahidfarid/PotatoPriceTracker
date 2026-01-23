@@ -75,16 +75,20 @@ export async function scrapeCardRushSet(
 
                     // Name parsing
                     // CardRush titles: "苦花を携える者/Bitterbloom Bearer《日本語》【ECL】"
-                    // Extract English name (after the /)
+                    // or for modal double-faced cards: "アシュリング、再誕火/Ashling, Rekindled // Ashling, Rimebound《英語》【ECL】"
+                    // Extract English name by finding the first / separator and taking everything after it
                     let cardName = '';
-                    if (title.includes('/')) {
-                        // Get the part after /
-                        cardName = title.split('/')[1]
-                            .split('《')[0] // Remove language marker
-                            .trim();
+                    // First, remove language marker and everything after it
+                    const beforeLang = title.split('《')[0].trim();
+
+                    // Find the first / which separates Japanese from English
+                    const slashIndex = beforeLang.indexOf('/');
+                    if (slashIndex > -1) {
+                        // Extract the English part (everything after the first /)
+                        cardName = beforeLang.substring(slashIndex + 1).trim();
                     } else {
-                        // Fallback: get first part and clean
-                        cardName = title.split('《')[0].trim();
+                        // No separator, use the entire text (might be English-only listing)
+                        cardName = beforeLang;
                     }
 
                     // Remove condition tags like [EX+], variant tags, etc
@@ -101,6 +105,11 @@ export async function scrapeCardRushSet(
                         .trim();
 
                     const priceYen = parseInt(priceText.replace(/[^\d]/g, ''));
+
+                    // Skip invalid or zero prices
+                    if (isNaN(priceYen) || priceYen <= 0) {
+                        continue;
+                    }
 
                     // Try to extract stock information
                     // Look for patterns like "在庫数 X枚" or "在庫なし"
