@@ -1,12 +1,9 @@
-
-import { PrismaClient } from '@prisma/client';
 import { chromium } from 'playwright';
 import { scrapeHareruyaSet } from './shops/hareruya_set';
 import { scrapeHareruyaKaitori } from './shops/hareruya_kaitori';
 import { scrapeCardRushSet } from './shops/cardrush_set';
 import { scrapeCardRushKaitori } from './shops/cardrush_kaitori';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 export interface ScraperOptions {
     shop?: 'hareruya' | 'cardrush';

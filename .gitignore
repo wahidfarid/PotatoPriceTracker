@@ -42,5 +42,6 @@ next-env.d.ts
 
 /src/generated/prisma
 
-# allow local database for static hosting
-!prisma/dev.db
+# SQLite database (now using Turso cloud)
+prisma/*.db
+prisma/*.db-journal
