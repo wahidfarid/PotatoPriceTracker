@@ -1,18 +1,40 @@
 import { PrismaClient } from '@prisma/client';
-import { Browser } from 'playwright';
+import { load } from 'cheerio';
 
-export async function scrapeHareruyaKaitori(
-    setCode: string,
-    prisma: PrismaClient,
-    browser: Browser
-) {
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+export async function scrapeHareruyaKaitori(setCode: string, prisma: PrismaClient) {
     console.log(`[Hareruya Kaitori] Starting HTML crawl for set: ${setCode}`);
 
     const shop = await prisma.shop.findUniqueOrThrow({ where: { name: 'Hareruya' } });
-    const context = await browser.newContext({
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
+    const allVariants = await prisma.cardVariant.findMany({
+        where: { setCode: setCode.toUpperCase() }
     });
-    const page = await context.newPage();
+
+    const variantByCN = new Map<string, typeof allVariants[0]>();
+    for (const v of allVariants) {
+        variantByCN.set(`${v.collectorNumber}-${v.language}-${v.isFoil}`, v);
+    }
+
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const recentPrices = await prisma.price.findMany({
+        where: {
+            variant: { setCode: setCode.toUpperCase() },
+            shopId: shop.id,
+            timestamp: { gte: cutoff }
+        },
+        orderBy: { timestamp: 'desc' }
+    });
+
+    const recentPriceMap = new Map<string, typeof recentPrices[0]>();
+    for (const p of recentPrices) {
+        if (!recentPriceMap.has(p.variantId)) recentPriceMap.set(p.variantId, p);
+    }
+
+    const toUpdate: { id: string; buyPriceYen: number; sellSourceUrl: string }[] = [];
+    const toCreate: any[] = [];
 
     let currentPage = 1;
     let hasNext = true;
@@ -22,31 +44,26 @@ export async function scrapeHareruyaKaitori(
         console.log(`[Hareruya Kaitori] Fetching ${url}`);
 
         try {
-            await page.goto(url, { waitUntil: 'domcontentloaded' });
+            const res = await fetch(url, { headers: { 'User-Agent': UA } });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const html = await res.text();
+            const $ = load(html);
 
-            const cards = await page.$$eval('.itemList', (items) => {
-                return items.map(item => {
-                    const name = item.querySelector('.itemName')?.textContent?.trim() || '';
-                    const priceText = item.querySelector('.itemDetail__price')?.textContent?.trim() || '';
-                    const href = (item.querySelector('.itemName') as HTMLAnchorElement)?.href || '';
-                    return { name, priceText, href };
-                });
+            const cards: { title: string; priceText: string; href: string }[] = [];
+            $('.itemList').each((_, el) => {
+                const title = $(el).find('.itemName').text().trim();
+                const priceText = $(el).find('.itemDetail__price').text().trim();
+                const href = $(el).find('.itemName').attr('href') || $(el).find('a').attr('href') || '';
+                cards.push({ title, priceText, href });
             });
 
-            if (cards.length === 0) {
-                hasNext = false;
-                break;
-            }
+            if (cards.length === 0) { hasNext = false; break; }
 
-            for (const cardData of cards) {
-                const title = cardData.name;
-                const priceYen = parseInt(cardData.priceText.replace(/[^0-9]/g, ''), 10);
+            for (const { title, priceText, href } of cards) {
+                const priceYen = parseInt(priceText.replace(/[^0-9]/g, ''), 10);
                 if (isNaN(priceYen)) continue;
 
-                // Simple skip for sealed product
                 if (title.includes('Box') || title.includes('Pack') || title.includes('Supply')) continue;
-
-                // Match Code
                 if (!title.includes(`[${setCode.toUpperCase()}]`) && !title.includes(`[${setCode.toUpperCase()}-`)) continue;
 
                 const cnMatch = title.match(/\((\d+)\)/);
@@ -55,74 +72,28 @@ export async function scrapeHareruyaKaitori(
 
                 let lang = 'JP';
                 if (title.includes('【EN】') || title.includes('[EN]') || title.includes('英語版')) lang = 'EN';
-
                 const isFoil = title.includes('Foil') || title.includes('【Foil】');
 
-                let variant = null;
-                if (collectorNumber) {
-                    variant = await prisma.cardVariant.findFirst({
-                        where: {
-                            setCode: setCode.toUpperCase(),
-                            collectorNumber: collectorNumber,
-                            language: lang,
-                            isFoil: isFoil
-                        }
+                const v = collectorNumber ? variantByCN.get(`${collectorNumber}-${lang}-${isFoil}`) : undefined;
+                if (!v) continue;
+
+                const recentPrice = recentPriceMap.get(v.id);
+                if (recentPrice) {
+                    toUpdate.push({ id: recentPrice.id, buyPriceYen: priceYen, sellSourceUrl: href });
+                } else {
+                    toCreate.push({
+                        variantId: v.id,
+                        shopId: shop.id,
+                        priceYen: 0,
+                        stock: 0,
+                        buyPriceYen: priceYen,
+                        sellSourceUrl: href
                     });
-                }
-
-                if (variant) {
-                    // Find a very recent price record for this variant/shop (today)
-                    const recentPrice = await prisma.price.findFirst({
-                        where: {
-                            variantId: variant.id,
-                            shopId: shop.id,
-                            timestamp: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // within 24h
-                        },
-                        orderBy: { timestamp: 'desc' }
-                    });
-
-                    if (recentPrice) {
-                        await prisma.price.update({
-                            where: { id: recentPrice.id },
-                            data: {
-                                buyPriceYen: priceYen,
-                                sellSourceUrl: cardData.href
-                            }
-                        });
-                    } else {
-                        // Also find latest record with price data to carry over if we're creating a new one
-                        const lastSetPrice = await prisma.price.findFirst({
-                            where: {
-                                variantId: variant.id,
-                                shopId: shop.id,
-                                priceYen: { gt: 0 },
-                                timestamp: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
-                            },
-                            orderBy: { timestamp: 'desc' }
-                        });
-
-                        await prisma.price.create({
-                            data: {
-                                variantId: variant.id,
-                                shopId: shop.id,
-                                priceYen: lastSetPrice?.priceYen || 0,
-                                stock: lastSetPrice?.stock || 0,
-                                buyPriceYen: priceYen,
-                                sellSourceUrl: cardData.href
-                            }
-                        });
-                    }
                 }
             }
 
-            // Simple check for next page (search for "次へ" or similar)
-            const nextExists = await page.$('.result_pagenum a:text("次へ")'); // This is a guess, Hareruya usually has pagination links
-            // Actually let's just increment and check card count
-            if (cards.length < 20) { // Assuming 30 items per page
-                hasNext = false;
-            } else {
-                currentPage++;
-            }
+            if (cards.length < 20) hasNext = false;
+            else currentPage++;
 
         } catch (e) {
             console.error(`[Hareruya Kaitori] Error on page ${currentPage}:`, e);
@@ -130,5 +101,16 @@ export async function scrapeHareruyaKaitori(
         }
     }
 
-    await context.close();
+    if (toUpdate.length > 0) {
+        await prisma.$transaction(
+            toUpdate.map(u => prisma.price.update({
+                where: { id: u.id },
+                data: { buyPriceYen: u.buyPriceYen, sellSourceUrl: u.sellSourceUrl }
+            }))
+        );
+    }
+    if (toCreate.length > 0) {
+        await prisma.price.createMany({ data: toCreate });
+    }
+    console.log(`[Hareruya Kaitori] Updated ${toUpdate.length}, created ${toCreate.length} for ${setCode}`);
 }

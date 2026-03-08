@@ -1,97 +1,86 @@
-
 import { PrismaClient } from '@prisma/client';
-import { Browser } from 'playwright';
+import { load } from 'cheerio';
 
-export async function scrapeCardRushSet(
-    setCode: string, // "ECL"
-    prisma: PrismaClient,
-    browser: Browser
-) {
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+export async function scrapeCardRushSet(setCode: string, prisma: PrismaClient) {
     console.log(`[CardRush] Starting crawl for set: ${setCode}`);
-    const page = await browser.newPage();
 
-    // Search for the set
-    // CardRush usually works with English keyword if it's in the title, or Japanese.
-    // Try using the set code directly as the search term
-    const query = setCode.toUpperCase();
     const shop = await prisma.shop.findUniqueOrThrow({ where: { name: 'CardRush' } });
 
+    const allVariants = await prisma.cardVariant.findMany({
+        where: { setCode: setCode.toUpperCase() },
+        include: { card: true }
+    });
+
+    const variantByCN = new Map<string, typeof allVariants[0]>();
+    const variantsByName = new Map<string, typeof allVariants>();
+    for (const v of allVariants) {
+        variantByCN.set(`${v.collectorNumber}-${v.language}-${v.isFoil}`, v);
+        const nameKey = `${v.card.name}-${v.language}-${v.isFoil}`;
+        if (!variantsByName.has(nameKey)) variantsByName.set(nameKey, []);
+        variantsByName.get(nameKey)!.push(v);
+    }
+
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const recentKaitori = await prisma.price.findMany({
+        where: {
+            variant: { setCode: setCode.toUpperCase() },
+            shopId: shop.id,
+            buyPriceYen: { not: null },
+            timestamp: { gte: cutoff }
+        },
+        orderBy: { timestamp: 'desc' }
+    });
+
+    const kaitorMap = new Map<string, typeof recentKaitori[0]>();
+    for (const p of recentKaitori) {
+        if (!kaitorMap.has(p.variantId)) kaitorMap.set(p.variantId, p);
+    }
+
+    const pricesToCreate: any[] = [];
+    const query = setCode.toUpperCase();
+    let currentUrl: string | null = `https://www.cardrush-mtg.jp/product-list?keyword=${encodeURIComponent(query)}`;
+
     try {
-        await page.goto(`https://www.cardrush-mtg.jp/product-list?keyword=${encodeURIComponent(query)}`);
+        while (currentUrl) {
+            console.log(`[CardRush] Scraping ${currentUrl}`);
 
-        let hasNext = true;
-        while (hasNext) {
-            console.log(`[CardRush] Scraping page: ${page.url()}`);
+            const res = await fetch(currentUrl, { headers: { 'User-Agent': UA } });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const html = await res.text();
+            const $ = load(html);
 
-            try {
-                await page.waitForSelector('a.item_data_link', { timeout: 10000 });
-            } catch (error) {
-                console.error(`[CardRush] Timeout waiting for selector 'a.item_data_link' on ${page.url()}`);
-                console.error(`Error details:`, error);
-                throw error;
-            }
-            const items = await page.$$('a.item_data_link');
-
-            for (const item of items) {
+            $('a.item_data_link').each((_, el) => {
                 try {
-                    // CardRush structure:
-                    // a.item_data_link (container)
-                    //   .item_name > .goods_name (product name)
-                    //   .selling_price > .figure (price)
-                    //   .stock (stock info)
+                    const title = $(el).find('.item_name .goods_name').text().trim();
+                    const relativeHref = $(el).attr('href') || '';
+                    const priceText = $(el).find('.selling_price .figure').text().trim();
+                    if (!title || !priceText || !relativeHref) return;
 
-                    const titleEl = await item.$('.item_name .goods_name');
-                    const title = await titleEl?.textContent();
-                    const relativeHref = await item.getAttribute('href');
-                    const priceEl = await item.$('.selling_price .figure');
-                    const priceText = await priceEl?.textContent();
-
-                    if (!title || !priceText || !relativeHref) continue;
-
-                    // Convert relative URL to absolute
                     const href = relativeHref.startsWith('http')
                         ? relativeHref
                         : `https://www.cardrush-mtg.jp${relativeHref}`;
 
-                    // Parse variant type from Japanese keywords
                     const isShowcase = title.includes('(ショーケース枠)');
                     const isDoubleRainbow = title.includes('(ダブルレインボウFOIL)');
                     const isFullArt = title.includes('(Full Art)') || title.includes('(フルアート)');
-                    const isFracture = title.includes('Fracture FOIL') ||
-                                       title.includes('フラクチャーFOIL') ||
-                                       title.includes('(Fracture)');
+                    const isFracture = title.includes('Fracture FOIL') || title.includes('フラクチャーFOIL') || title.includes('(Fracture)');
                     const isFoil = title.includes('(FOIL)') || isDoubleRainbow || isFracture;
 
-                    // Parse language from 《英語》 or 《日本語》
                     const isEN = title.includes('《英語》');
                     const lang = isEN ? 'EN' : 'JP';
 
-                    // Extract collector number: "(0313)" -> "313"
                     const cnMatch = title.match(/\(0*(\d+)\)/);
                     let collectorNumber: string | null = null;
-                    if (cnMatch) {
-                        collectorNumber = parseInt(cnMatch[1], 10).toString();
-                    }
+                    if (cnMatch) collectorNumber = parseInt(cnMatch[1], 10).toString();
 
-                    // Name parsing
-                    // CardRush titles: "苦花を携える者/Bitterbloom Bearer《日本語》【ECL】"
-                    // or for modal double-faced cards: "アシュリング、再誕火/Ashling, Rekindled // Ashling, Rimebound《英語》【ECL】"
-                    // Extract English name by finding the first / separator and taking everything after it
-                    let cardName = '';
-                    // First, remove language marker and everything after it
                     const beforeLang = title.split('《')[0].trim();
-
-                    // Find the first / which separates Japanese from English
                     const slashIndex = beforeLang.indexOf('/');
-                    if (slashIndex > -1) {
-                        // Extract the English part (everything after the first /)
-                        cardName = beforeLang.substring(slashIndex + 1).trim();
-                    } else {
-                        // No separator, use the entire text (might be English-only listing)
-                        cardName = beforeLang;
-                    }
-
-                    // Remove condition tags like [EX+], variant tags, etc
+                    let cardName = slashIndex > -1
+                        ? beforeLang.substring(slashIndex + 1).trim()
+                        : beforeLang;
                     cardName = cardName
                         .replace(/\[EX\+\]/g, '')
                         .replace(/\(FOIL\)/g, '')
@@ -101,142 +90,82 @@ export async function scrapeCardRushSet(
                         .replace(/\(フルアート\)/g, '')
                         .replace(/\(Fracture FOIL\)/g, '')
                         .replace(/\(フラクチャーFOIL\)/g, '')
-                        .replace(/\(0*\d+\)/g, '')  // Remove collector numbers
+                        .replace(/\(0*\d+\)/g, '')
                         .trim();
 
                     const priceYen = parseInt(priceText.replace(/[^\d]/g, ''));
+                    if (isNaN(priceYen) || priceYen <= 0) return;
 
-                    // Skip invalid or zero prices
-                    if (isNaN(priceYen) || priceYen <= 0) {
-                        continue;
-                    }
+                    const stockText = $(el).find('.stock').text().trim();
+                    const stockNumMatch = stockText.match(/(\d+)/);
+                    const stockCount = stockNumMatch ? parseInt(stockNumMatch[1], 10) : 0;
 
-                    // Try to extract stock information
-                    // Look for patterns like "在庫数 X枚" or "在庫なし"
-                    const stockMatch = await item.$eval('.stock', (el) => el.textContent).catch(() => null);
-                    let stockCount = 0;
-                    if (stockMatch) {
-                        const stockNumMatch = stockMatch.match(/(\d+)/);
-                        stockCount = stockNumMatch ? parseInt(stockNumMatch[1], 10) : 0;
-                    }
+                    let v: typeof allVariants[0] | undefined;
 
-                    let variants: any[] = [];
-
-                    // Strategy 1: Collector number (most precise - uses unique constraint)
                     if (collectorNumber) {
-                        variants = await prisma.cardVariant.findMany({
-                            where: {
-                                setCode: setCode.toUpperCase(),
-                                collectorNumber: collectorNumber,
-                                language: lang,
-                                isFoil: isFoil
-                            },
-                            include: { card: true }
-                        });
+                        v = variantByCN.get(`${collectorNumber}-${lang}-${isFoil}`);
                     }
 
-                    // Strategy 2: Fallback to name + variant type (only if no collector number)
-                    if (variants.length === 0 && !collectorNumber) {
-                        const whereClause: any = {
-                            card: { name: cardName },
-                            language: lang,
-                            isFoil: isFoil,
-                            setCode: setCode.toUpperCase()
-                        };
-
+                    if (!v && !collectorNumber && cardName) {
+                        const candidates = variantsByName.get(`${cardName}-${lang}-${isFoil}`) || [];
                         if (isFracture) {
-                            whereClause.promoTypes = { contains: 'fracturefoil' };
+                            v = candidates.find(c => c.promoTypes?.includes('fracturefoil'));
                         } else if (isShowcase) {
-                            whereClause.frameEffects = { contains: 'showcase' };
+                            v = candidates.find(c => c.frameEffects?.includes('showcase'));
                         } else if (isDoubleRainbow) {
-                            whereClause.promoTypes = { contains: 'doublerainbow' };
+                            v = candidates.find(c => c.promoTypes?.includes('doublerainbow'));
                         } else if (isFullArt) {
-                            // CardRush uses (フルアート) for both inverted AND extendedart
-                            whereClause.OR = [
-                                { frameEffects: { contains: 'inverted' } },
-                                { frameEffects: { contains: 'extendedart' } }
-                            ];
+                            v = candidates.find(c => c.frameEffects?.includes('inverted') || c.frameEffects?.includes('extendedart'));
                         } else {
-                            // Base variant: exclude special frame variants (not just null)
-                            // Cards may have frameEffects like "legendary" or "enchantment"
-                            whereClause.NOT = [
-                                { frameEffects: { contains: 'showcase' } },
-                                { frameEffects: { contains: 'extendedart' } },
-                                { frameEffects: { contains: 'inverted' } }
-                            ];
-                            whereClause.OR = [
-                                { promoTypes: null },
-                                { NOT: { promoTypes: { contains: 'doublerainbow' } } }
-                            ];
+                            const filtered = candidates.filter(c =>
+                                !c.frameEffects?.includes('showcase') &&
+                                !c.frameEffects?.includes('extendedart') &&
+                                !c.frameEffects?.includes('inverted') &&
+                                (c.promoTypes == null || !c.promoTypes.includes('doublerainbow'))
+                            );
+                            if (filtered.length === 1) v = filtered[0];
+                            else if (filtered.length > 1) {
+                                const candidateCNs = filtered.map(x => x.collectorNumber).join(', ');
+                                console.log(`[CardRush] AMBIGUOUS: "${cardName}" | ${lang}/${isFoil ? 'Foil' : 'Normal'} | found ${filtered.length}: [${candidateCNs}]`);
+                            }
                         }
-
-                        variants = await prisma.cardVariant.findMany({
-                            where: whereClause,
-                            include: { card: true }
-                        });
+                        if (!v && candidates.length === 0) {
+                            console.log(`[CardRush] NO MATCH: "${cardName}" | CN:none | ${lang}/${isFoil ? 'Foil' : 'Normal'}`);
+                        }
                     }
 
-                    if (variants.length === 1) {
-                        const v = variants[0];
-
-                        // Check for recent kaitori (buy price) data to carry over
-                        const latestKaitori = await prisma.price.findFirst({
-                            where: {
-                                variantId: v.id,
-                                shopId: shop.id,
-                                buyPriceYen: { not: null },
-                                timestamp: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
-                            },
-                            orderBy: { timestamp: 'desc' }
-                        });
-
-                        await prisma.price.create({
-                            data: {
-                                variantId: v.id,
-                                shopId: shop.id,
-                                priceYen: priceYen,
-                                stock: stockCount,
-                                sourceUrl: href,
-                                buyPriceYen: latestKaitori?.buyPriceYen,
-                                sellSourceUrl: latestKaitori?.sellSourceUrl
-                            }
+                    if (v) {
+                        const latestKaitori = kaitorMap.get(v.id);
+                        pricesToCreate.push({
+                            variantId: v.id,
+                            shopId: shop.id,
+                            priceYen,
+                            stock: stockCount,
+                            sourceUrl: href,
+                            buyPriceYen: latestKaitori?.buyPriceYen ?? null,
+                            sellSourceUrl: latestKaitori?.sellSourceUrl ?? null
                         });
                         console.log(`[CardRush] Matched ${cardName} -> CN:${v.collectorNumber} (${lang}/${isFoil ? 'Foil' : 'Normal'})`);
-                    } else if (variants.length === 0) {
-                        console.log(`[CardRush] NO MATCH: "${cardName}" | CN:${collectorNumber || 'none'} | ${lang}/${isFoil ? 'Foil' : 'Normal'}`);
-                    } else {
-                        const candidateCNs = variants.map(v => v.collectorNumber).join(', ');
-                        console.log(`[CardRush] AMBIGUOUS: "${cardName}" | parsed CN:${collectorNumber || 'none'} | found ${variants.length}: [${candidateCNs}]`);
                     }
-
                 } catch (e) {
-                    // ignore
+                    // ignore per-item errors
                 }
-            }
+            });
 
-            // Next page
-            const nextBtn = await page.$('.to_next_page');
-            // If it's a link, click it.
-            // CardRush uses <a class="to_next_page pager_btn"> for next page
-            if (nextBtn) {
-                try {
-                    await Promise.all([
-                        page.waitForNavigation({ timeout: 30000, waitUntil: 'domcontentloaded' }),
-                        nextBtn.click(),
-                    ]);
-                } catch (error) {
-                    console.error(`[CardRush] Navigation timeout on ${page.url()}`);
-                    console.error(`Error details:`, error);
-                    hasNext = false;
-                }
+            const nextHref = $('a.to_next_page').attr('href');
+            if (nextHref) {
+                currentUrl = nextHref.startsWith('http') ? nextHref : `https://www.cardrush-mtg.jp${nextHref}`;
             } else {
-                hasNext = false;
+                currentUrl = null;
             }
         }
 
     } catch (e) {
         console.error(`[CardRush] Error:`, e);
-    } finally {
-        await page.close();
+    }
+
+    if (pricesToCreate.length > 0) {
+        await prisma.price.createMany({ data: pricesToCreate });
+        console.log(`[CardRush] Created ${pricesToCreate.length} price records for ${setCode}`);
     }
 }

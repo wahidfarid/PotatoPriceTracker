@@ -1,4 +1,3 @@
-import { chromium } from 'playwright';
 import { scrapeHareruyaSet } from './shops/hareruya_set';
 import { scrapeHareruyaKaitori } from './shops/hareruya_kaitori';
 import { scrapeCardRushSet } from './shops/cardrush_set';
@@ -10,6 +9,8 @@ export interface ScraperOptions {
     priceType?: 'buy' | 'sell';
 }
 
+const SETS = ['ECL', 'ECC', 'SPG', 'TMT', 'TMC', 'PZA'];
+
 export async function runScraper(options: ScraperOptions = {}) {
     const { shop, priceType } = options;
     const parts: string[] = [];
@@ -18,76 +19,32 @@ export async function runScraper(options: ScraperOptions = {}) {
     const sourceName = parts.length > 0 ? parts.join(' ') : 'all sources';
     console.log(`Starting scraper for ${sourceName}...`);
 
-    const browser = await chromium.launch({ headless: true });
-
     try {
         const runHareruya = !shop || shop === 'hareruya';
         const runCardrush = !shop || shop === 'cardrush';
-        const runBuy = !priceType || priceType === 'buy';    // *_set scrapers
-        const runSell = !priceType || priceType === 'sell';  // *_kaitori scrapers
+        const runBuy = !priceType || priceType === 'buy';
+        const runSell = !priceType || priceType === 'sell';
 
         const tasks: Promise<void>[] = [];
 
         if (runHareruya) {
-            tasks.push((async () => {
-                // Hareruya - buy prices (set)
-                if (runBuy) {
-                    try {
-                        await scrapeHareruyaSet('ECL', prisma, browser);
-                        await scrapeHareruyaSet('ECC', prisma, browser);
-                        await scrapeHareruyaSet('SPG', prisma, browser);
-                        await scrapeHareruyaSet('TMT', prisma, browser);
-                        await scrapeHareruyaSet('TMC', prisma, browser);
-                        await scrapeHareruyaSet('PZA', prisma, browser);
-                    } catch (e) {
-                        console.error('[Hareruya Set] Failed:', e);
-                    }
-                }
-                // Hareruya - sell prices (kaitori)
-                if (runSell) {
-                    try {
-                        await scrapeHareruyaKaitori('ECL', prisma, browser);
-                        await scrapeHareruyaKaitori('ECC', prisma, browser);
-                        await scrapeHareruyaKaitori('SPG', prisma, browser);
-                        await scrapeHareruyaKaitori('TMT', prisma, browser);
-                        await scrapeHareruyaKaitori('TMC', prisma, browser);
-                        await scrapeHareruyaKaitori('PZA', prisma, browser);
-                    } catch (e) {
-                        console.error('[Hareruya Kaitori] Failed:', e);
-                    }
-                }
-            })());
+            const hrBuy = runBuy
+                ? Promise.all(SETS.map(s => scrapeHareruyaSet(s, prisma).catch(e => console.error(`[Hareruya Set] ${s}:`, e))))
+                : Promise.resolve([]);
+            const hrSell = runSell
+                ? Promise.all(SETS.map(s => scrapeHareruyaKaitori(s, prisma).catch(e => console.error(`[Hareruya Kaitori] ${s}:`, e))))
+                : Promise.resolve([]);
+            tasks.push(Promise.all([hrBuy, hrSell]).then(() => {}));
         }
 
         if (runCardrush) {
-            tasks.push((async () => {
-                // CardRush - buy prices (set)
-                if (runBuy) {
-                    try {
-                        await scrapeCardRushSet('ECL', prisma, browser);
-                        await scrapeCardRushSet('ECC', prisma, browser);
-                        await scrapeCardRushSet('SPG', prisma, browser);
-                        await scrapeCardRushSet('TMT', prisma, browser);
-                        await scrapeCardRushSet('TMC', prisma, browser);
-                        await scrapeCardRushSet('PZA', prisma, browser);
-                    } catch (e) {
-                        console.error('[CardRush Set] Failed:', e);
-                    }
-                }
-                // CardRush - sell prices (kaitori)
-                if (runSell) {
-                    try {
-                        await scrapeCardRushKaitori('ECL', prisma, browser);
-                        await scrapeCardRushKaitori('ECC', prisma, browser);
-                        await scrapeCardRushKaitori('SPG', prisma, browser);
-                        await scrapeCardRushKaitori('TMT', prisma, browser);
-                        await scrapeCardRushKaitori('TMC', prisma, browser);
-                        await scrapeCardRushKaitori('PZA', prisma, browser);
-                    } catch (e) {
-                        console.error('[CardRush Kaitori] Failed:', e);
-                    }
-                }
-            })());
+            const crBuy = runBuy
+                ? Promise.all(SETS.map(s => scrapeCardRushSet(s, prisma).catch(e => console.error(`[CardRush Set] ${s}:`, e))))
+                : Promise.resolve([]);
+            const crSell = runSell
+                ? Promise.all(SETS.map(s => scrapeCardRushKaitori(s, prisma).catch(e => console.error(`[CardRush Kaitori] ${s}:`, e))))
+                : Promise.resolve([]);
+            tasks.push(Promise.all([crBuy, crSell]).then(() => {}));
         }
 
         await Promise.all(tasks);
@@ -95,7 +52,6 @@ export async function runScraper(options: ScraperOptions = {}) {
     } catch (e) {
         console.error('Error in scraper:', e);
     } finally {
-        await browser.close();
         await prisma.$disconnect();
     }
 
