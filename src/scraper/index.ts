@@ -36,6 +36,9 @@ export async function runScraper(options: ScraperOptions = {}) {
                         await scrapeHareruyaSet('ECL', prisma, browser);
                         await scrapeHareruyaSet('ECC', prisma, browser);
                         await scrapeHareruyaSet('SPG', prisma, browser);
+                        await scrapeHareruyaSet('TMT', prisma, browser);
+                        await scrapeHareruyaSet('TMC', prisma, browser);
+                        await scrapeHareruyaSet('PZA', prisma, browser);
                     } catch (e) {
                         console.error('[Hareruya Set] Failed:', e);
                     }
@@ -46,6 +49,9 @@ export async function runScraper(options: ScraperOptions = {}) {
                         await scrapeHareruyaKaitori('ECL', prisma, browser);
                         await scrapeHareruyaKaitori('ECC', prisma, browser);
                         await scrapeHareruyaKaitori('SPG', prisma, browser);
+                        await scrapeHareruyaKaitori('TMT', prisma, browser);
+                        await scrapeHareruyaKaitori('TMC', prisma, browser);
+                        await scrapeHareruyaKaitori('PZA', prisma, browser);
                     } catch (e) {
                         console.error('[Hareruya Kaitori] Failed:', e);
                     }
@@ -61,6 +67,9 @@ export async function runScraper(options: ScraperOptions = {}) {
                         await scrapeCardRushSet('ECL', prisma, browser);
                         await scrapeCardRushSet('ECC', prisma, browser);
                         await scrapeCardRushSet('SPG', prisma, browser);
+                        await scrapeCardRushSet('TMT', prisma, browser);
+                        await scrapeCardRushSet('TMC', prisma, browser);
+                        await scrapeCardRushSet('PZA', prisma, browser);
                     } catch (e) {
                         console.error('[CardRush Set] Failed:', e);
                     }
@@ -71,6 +80,9 @@ export async function runScraper(options: ScraperOptions = {}) {
                         await scrapeCardRushKaitori('ECL', prisma, browser);
                         await scrapeCardRushKaitori('ECC', prisma, browser);
                         await scrapeCardRushKaitori('SPG', prisma, browser);
+                        await scrapeCardRushKaitori('TMT', prisma, browser);
+                        await scrapeCardRushKaitori('TMC', prisma, browser);
+                        await scrapeCardRushKaitori('PZA', prisma, browser);
                     } catch (e) {
                         console.error('[CardRush Kaitori] Failed:', e);
                     }

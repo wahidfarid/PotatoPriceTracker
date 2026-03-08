@@ -45,7 +45,7 @@ export function SparklineChart({ variantId, data = [], onClick, height = 30, wid
 
     const points = validData
         .map((point, index) => {
-            const x = padding + (index / (validData.length - 1)) * chartWidth;
+            const x = validData.length === 1 ? padding + chartWidth / 2 : padding + (index / (validData.length - 1)) * chartWidth;
             const y = padding + (1 - (point.price - minPrice) / priceRange) * chartHeight;
             return `${x},${y}`;
         })

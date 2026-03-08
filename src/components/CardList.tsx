@@ -39,7 +39,7 @@ export function CardList({ initialCards }: CardListProps) {
                             stroke="currentColor"
                             viewBox="0 0 24 24"
                         >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                     </div>
                     <div className="text-xs text-gray-500 hidden md:block">
@@ -108,13 +108,17 @@ export function CardList({ initialCards }: CardListProps) {
                                                 <td className="py-2 px-2 md:px-3 text-gray-400 font-mono font-medium align-middle">{variant.collectorNumber}</td>
 
                                                 {isFirstOfCollectorNumber && (
-                                                    <td className="py-2 px-2 md:px-3 align-middle border-r border-gray-100 bg-white" rowSpan={rowSpan}>
+                                                    <td
+                                                        className="py-2 px-2 md:px-3 align-middle border-r border-gray-100 bg-white cursor-pointer"
+                                                        rowSpan={rowSpan}
+                                                        onClick={() => setOpenModalCardId(card.id)}
+                                                    >
                                                         {variant.scryfallId ? (
                                                             <div className="flex justify-center p-1">
                                                                 <img
                                                                     src={`https://cards.scryfall.io/normal/front/${variant.scryfallId.charAt(0)}/${variant.scryfallId.charAt(1)}/${variant.scryfallId}.jpg`}
                                                                     alt="art"
-                                                                    className="w-24 md:w-44 h-auto rounded-md shadow-md"
+                                                                    className="w-24 md:w-44 h-auto rounded-md shadow-md hover:opacity-80 transition-opacity"
                                                                 />
                                                             </div>
                                                         ) : (

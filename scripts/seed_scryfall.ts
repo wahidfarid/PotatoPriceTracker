@@ -118,7 +118,7 @@ async function seedSet(setCode: string) {
 }
 
 async function main() {
-    const sets = ['ecl', 'ecc', 'spg'];
+    const sets = ['ecl', 'ecc', 'spg', 'tmt', 'tmc', 'pza'];
     for (const s of sets) {
         await seedSet(s);
     }

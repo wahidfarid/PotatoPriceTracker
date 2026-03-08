@@ -1,7 +1,9 @@
 # Project Context: Potato Price Tracker (MTG)
 
 ## Overview
-A specialized price tracking application for Magic: The Gathering, currently focused on the custom/experimental set **"Lorwyn Eclipsed" (ECL)** and its associated supplemental sets **(ECC, SPG-ECL)**.
+A specialized price tracking application for Magic: The Gathering, currently tracking:
+- **Lorwyn Eclipsed**: ECL (main), ECC (Commander), SPG (restricted, year:2026 filter)
+- **TMNT Universes Beyond** (released 2026-03-06): TMT (main, ~320 cards), TMC (Commander, ~132 cards), PZA (masterpiece, 20 cards)
 
 ## Core Tech Stack
 - **Framework**: Next.js 16+ (App Router)
@@ -29,5 +31,5 @@ A specialized price tracking application for Magic: The Gathering, currently foc
 - Large thumbnails enabled (w-44).
 - Fixed search bar (English only).
 - Red price coloring for out-of-stock items.
-- Support for ECL, ECC, and restricted SPG-ECL (year:2026).
+- Support for ECL, ECC, SPG (year:2026), TMT, TMC, and PZA.
 - **Deployment**: Static SQLite hosting on Vercel with absolute path resolution in `src/lib/data.ts`.

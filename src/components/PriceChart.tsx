@@ -37,11 +37,11 @@ export function PriceChart({ data }: PriceChartProps) {
             grouped.set(timeKey, { time: timeKey, timestamp: new Date(d.timestamp).getTime() });
         }
         const entry = grouped.get(timeKey);
-        // For sell price, use shop name as key (supports multiple shops)
-        entry[`${d.shopName} (Sell)`] = d.priceYen;
-        // For buy price, add if available
+        // For buy price (customer buys from shop), use priceYen
+        entry[`${d.shopName} (Buy)`] = d.priceYen;
+        // For sell price (customer sells to shop), add if available
         if (d.buyPriceYen != null) {
-            entry[`${d.shopName} (Buy)`] = d.buyPriceYen;
+            entry[`${d.shopName} (Sell)`] = d.buyPriceYen;
         }
     });
 
@@ -50,9 +50,9 @@ export function PriceChart({ data }: PriceChartProps) {
     // Determine which lines to show
     const linesToShow: string[] = [];
     shops.forEach(shop => {
-        linesToShow.push(`${shop} (Sell)`);
+        linesToShow.push(`${shop} (Buy)`);
         if (hasBuyPrices) {
-            linesToShow.push(`${shop} (Buy)`);
+            linesToShow.push(`${shop} (Sell)`);
         }
     });
 
