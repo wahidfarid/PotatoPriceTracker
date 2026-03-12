@@ -62,12 +62,21 @@ export function SparklineChart({ variantId, data = [], onClick, height = 30, wid
             title="Click to view full price history"
         >
             <svg width={width} height={height}>
-                <polyline
-                    points={points}
-                    fill="none"
-                    stroke={strokeColor}
-                    strokeWidth="1.5"
-                />
+                {validData.length === 1 ? (
+                    <circle
+                        cx={width / 2}
+                        cy={height / 2}
+                        r="2"
+                        fill={strokeColor}
+                    />
+                ) : (
+                    <polyline
+                        points={points}
+                        fill="none"
+                        stroke={strokeColor}
+                        strokeWidth="1.5"
+                    />
+                )}
             </svg>
         </div>
     );

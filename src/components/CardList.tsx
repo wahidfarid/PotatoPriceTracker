@@ -64,7 +64,7 @@ export function CardList({ initialCards }: CardListProps) {
                                         <th className="py-2 px-2 md:px-3 w-32 md:w-48 font-bold">Image</th>
                                         <th className="py-2 px-2 md:px-3 w-16 md:w-20 font-bold">Ver</th>
                                         <th className="py-2 px-2 md:px-3 w-8 md:w-12 font-bold">Ln</th>
-                                        <th className="py-2 px-2 md:px-3 text-center border-l-2 border-gray-200 bg-gray-50" colSpan={2}>Trend</th>
+                                        <th className="py-2 px-2 md:px-3 text-center border-l-2 border-gray-200 bg-gray-50" colSpan={2}>Last 30 days trend</th>
                                         <th className="py-2 px-2 md:px-3 text-center border-l-2 border-gray-200 bg-gray-50" colSpan={2}>Hareruya</th>
                                         <th className="py-2 px-2 md:px-3 text-center border-l-2 border-gray-200 bg-blue-50" colSpan={2}>CardRush</th>
                                     </tr>

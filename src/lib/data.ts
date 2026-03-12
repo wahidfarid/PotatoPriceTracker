@@ -58,7 +58,6 @@ export async function getDashboardData() {
                   AND p.timestamp >= ${thirtyDaysAgoMs}
                   AND p.priceYen > 0
                 ORDER BY p.timestamp ASC
-                LIMIT 10000
             `;
 
         // Step 1: Group by variantId-dayKey-shopName, keep last entry per shop per day
