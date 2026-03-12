@@ -64,6 +64,7 @@ export function CardList({ initialCards }: CardListProps) {
                                         <th className="py-2 px-2 md:px-3 w-32 md:w-48 font-bold">Image</th>
                                         <th className="py-2 px-2 md:px-3 w-16 md:w-20 font-bold">Ver</th>
                                         <th className="py-2 px-2 md:px-3 w-8 md:w-12 font-bold">Ln</th>
+                                        <th className="py-2 px-2 md:px-3 text-center border-l-2 border-gray-200 bg-gray-50" colSpan={2}>Trend</th>
                                         <th className="py-2 px-2 md:px-3 text-center border-l-2 border-gray-200 bg-gray-50" colSpan={2}>Hareruya</th>
                                         <th className="py-2 px-2 md:px-3 text-center border-l-2 border-gray-200 bg-blue-50" colSpan={2}>CardRush</th>
                                     </tr>
@@ -72,6 +73,9 @@ export function CardList({ initialCards }: CardListProps) {
                                         <th className="py-1 px-2 md:px-3"></th>
                                         <th className="py-1 px-2 md:px-3"></th>
                                         <th className="py-1 px-2 md:px-3"></th>
+                                        {/* Trend */}
+                                        <th className="py-1 px-2 md:px-3 text-center border-l-2 border-gray-200">Buy</th>
+                                        <th className="py-1 px-2 md:px-3 text-center">Sell</th>
                                         {/* Hareruya */}
                                         <th className="py-1 px-2 md:px-3 text-right border-l-2 border-gray-200">Buy</th>
                                         <th className="py-1 px-2 md:px-3 text-right">Sell</th>
@@ -138,98 +142,87 @@ export function CardList({ initialCards }: CardListProps) {
                                                 </td>
                                                 <td className="py-2 px-2 md:px-3 font-bold text-gray-800 align-middle text-center">{variant.language}</td>
 
+                                                {/* Trend — Buy sparkline */}
+                                                <td className="py-2 px-2 md:px-3 border-l-2 border-gray-200 bg-gray-50/50 align-middle text-center">
+                                                    <SparklineChart
+                                                        variantId={variant.id}
+                                                        data={variant.sparklineBuyData || []}
+                                                        onClick={() => setOpenModalCardId(card.id)}
+                                                    />
+                                                </td>
+                                                {/* Trend — Sell sparkline */}
+                                                <td className="py-2 px-2 md:px-3 bg-gray-50/50 align-middle text-center">
+                                                    <SparklineChart
+                                                        variantId={variant.id}
+                                                        data={variant.sparklineSellData || []}
+                                                        onClick={() => setOpenModalCardId(card.id)}
+                                                    />
+                                                </td>
+
                                                 {/* Hareruya Buy Price (Sell from shop to customer) */}
                                                 <td className="py-2 px-2 md:px-3 text-right font-mono border-l-2 border-gray-200 bg-gray-50/50 align-middle">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        {hareruyaPrice ? (
-                                                            <a
-                                                                href={hareruyaPrice.sourceUrl}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className={`hover:underline font-bold ${hareruyaPrice.stock === 0 ? 'text-red-500' : 'text-blue-600 hover:text-blue-800'}`}
-                                                            >
-                                                                {formatPrice(hareruyaSell)}
-                                                            </a>
-                                                        ) : <span className="text-gray-300">-</span>}
-                                                        <SparklineChart
-                                                            variantId={variant.id}
-                                                            data={variant.sparklineData || []}
-                                                            onClick={() => setOpenModalCardId(card.id)}
-                                                        />
-                                                    </div>
+                                                    {hareruyaPrice ? (
+                                                        <a
+                                                            href={hareruyaPrice.sourceUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className={`hover:underline font-bold ${hareruyaPrice.stock === 0 ? 'text-red-500' : 'text-blue-600 hover:text-blue-800'}`}
+                                                        >
+                                                            {formatPrice(hareruyaSell)}
+                                                        </a>
+                                                    ) : <span className="text-gray-300">-</span>}
                                                 </td>
 
                                                 {/* Hareruya Sell Price (Buy from customer, kaitori) */}
                                                 <td className="py-2 px-2 md:px-3 text-right font-mono text-gray-600 align-middle">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        {hareruyaPrice?.sellSourceUrl ? (
-                                                            <a
-                                                                href={hareruyaPrice.sellSourceUrl}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="hover:underline font-bold text-gray-600 hover:text-gray-800"
-                                                            >
-                                                                {formatPrice(hareruyaBuy)}
-                                                            </a>
-                                                        ) : (
-                                                            formatPrice(hareruyaBuy)
-                                                        )}
-                                                        <SparklineChart
-                                                            variantId={variant.id}
-                                                            data={variant.sparklineData || []}
-                                                            onClick={() => setOpenModalCardId(card.id)}
-                                                        />
-                                                    </div>
+                                                    {hareruyaPrice?.sellSourceUrl ? (
+                                                        <a
+                                                            href={hareruyaPrice.sellSourceUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="hover:underline font-bold text-gray-600 hover:text-gray-800"
+                                                        >
+                                                            {formatPrice(hareruyaBuy)}
+                                                        </a>
+                                                    ) : (
+                                                        formatPrice(hareruyaBuy)
+                                                    )}
                                                 </td>
 
                                                 {/* CardRush Buy Price (Sell from shop to customer) */}
                                                 <td className="py-2 px-2 md:px-3 text-right font-mono border-l-2 border-gray-200 bg-blue-50/50 align-middle">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        {cardrushPrice ? (
-                                                            <a
-                                                                href={cardrushPrice.sourceUrl}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className={`hover:underline font-bold ${
-                                                                    cardrushPrice.stock === 0
-                                                                        ? 'text-red-500'
-                                                                        : 'text-blue-600 hover:text-blue-800'
-                                                                }`}
-                                                            >
-                                                                {formatPrice(cardrushSell)}
-                                                            </a>
-                                                        ) : (
-                                                            <span className="text-gray-300">-</span>
-                                                        )}
-                                                        <SparklineChart
-                                                            variantId={variant.id}
-                                                            data={variant.sparklineData || []}
-                                                            onClick={() => setOpenModalCardId(card.id)}
-                                                        />
-                                                    </div>
+                                                    {cardrushPrice ? (
+                                                        <a
+                                                            href={cardrushPrice.sourceUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className={`hover:underline font-bold ${
+                                                                cardrushPrice.stock === 0
+                                                                    ? 'text-red-500'
+                                                                    : 'text-blue-600 hover:text-blue-800'
+                                                            }`}
+                                                        >
+                                                            {formatPrice(cardrushSell)}
+                                                        </a>
+                                                    ) : (
+                                                        <span className="text-gray-300">-</span>
+                                                    )}
                                                 </td>
 
                                                 {/* CardRush Sell Price (Buy from customer, kaitori) */}
                                                 <td className="py-2 px-2 md:px-3 text-right font-mono text-gray-600 align-middle">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        {cardrushPrice?.sellSourceUrl ? (
-                                                            <a
-                                                                href={cardrushPrice.sellSourceUrl}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="hover:underline font-bold text-gray-600 hover:text-gray-800"
-                                                            >
-                                                                {formatPrice(cardrushBuy)}
-                                                            </a>
-                                                        ) : (
-                                                            formatPrice(cardrushBuy)
-                                                        )}
-                                                        <SparklineChart
-                                                            variantId={variant.id}
-                                                            data={variant.sparklineData || []}
-                                                            onClick={() => setOpenModalCardId(card.id)}
-                                                        />
-                                                    </div>
+                                                    {cardrushPrice?.sellSourceUrl ? (
+                                                        <a
+                                                            href={cardrushPrice.sellSourceUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="hover:underline font-bold text-gray-600 hover:text-gray-800"
+                                                        >
+                                                            {formatPrice(cardrushBuy)}
+                                                        </a>
+                                                    ) : (
+                                                        formatPrice(cardrushBuy)
+                                                    )}
                                                 </td>
                                             </tr>
                                         );

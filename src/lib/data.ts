@@ -48,9 +48,10 @@ export async function getDashboardData() {
                 variantId: string;
                 timestamp: bigint;
                 priceYen: number;
+                buyPriceYen: number | null;
                 shopName: string;
             }>>`
-                SELECT p.variantId, p.timestamp, p.priceYen, s.name as shopName
+                SELECT p.variantId, p.timestamp, p.priceYen, p.buyPriceYen, s.name as shopName
                 FROM Price p
                 JOIN Shop s ON p.shopId = s.id
                 WHERE p.variantId IN (${Prisma.join(variantIds)})
@@ -60,74 +61,65 @@ export async function getDashboardData() {
                 LIMIT 10000
             `;
 
-        // Group by variant and day, keeping last price per day
-        const sparklineDataMap = new Map<string, any>();
-        
+        // Step 1: Group by variantId-dayKey-shopName, keep last entry per shop per day
+        const shopDayMap = new Map<string, { variantId: string; dayKey: string; ts: number; priceYen: number; buyPriceYen: number | null }>();
+
         allPrices.forEach(price => {
             try {
-                // Convert bigint timestamp to Date
                 const timestampMs = Number(price.timestamp);
                 const dayKey = format(new Date(timestampMs), 'yyyy-MM-dd');
-                const key = `${price.variantId}-${dayKey}`;
-
-                if (!sparklineDataMap.has(key)) {
-                    sparklineDataMap.set(key, {
-                        variantId: price.variantId,
-                        dayKey,
-                        timestamp: new Date(timestampMs),
-                        priceYen: price.priceYen,
-                        shopName: price.shopName
-                    });
-                } else {
-                    const existing = sparklineDataMap.get(key)!;
-                    // Keep the last price of the day
-                    if (timestampMs > new Date(existing.timestamp).getTime()) {
-                        sparklineDataMap.set(key, {
-                            variantId: price.variantId,
-                            dayKey,
-                            timestamp: new Date(timestampMs),
-                            priceYen: price.priceYen,
-                            shopName: price.shopName
-                        });
-                    }
+                const key = `${price.variantId}-${dayKey}-${price.shopName}`;
+                const existing = shopDayMap.get(key);
+                if (!existing || timestampMs > existing.ts) {
+                    shopDayMap.set(key, { variantId: price.variantId, dayKey, ts: timestampMs, priceYen: price.priceYen, buyPriceYen: price.buyPriceYen });
                 }
             } catch (e) {
-                // Skip invalid dates
                 console.warn('Skipping price with invalid timestamp:', price);
             }
         });
 
-        // Group by variant and limit to last 30 points
-        const variantSparklines = new Map<string, any[]>();
-        sparklineDataMap.forEach((data) => {
-            const variantId = data.variantId;
-            if (!variantSparklines.has(variantId)) {
-                variantSparklines.set(variantId, []);
+        // Step 2: Aggregate per variantId-dayKey across shops
+        const variantDayMap = new Map<string, { variantId: string; dayKey: string; sellPrices: number[]; buyPrices: number[] }>();
+        shopDayMap.forEach(data => {
+            const key = `${data.variantId}-${data.dayKey}`;
+            if (!variantDayMap.has(key)) {
+                variantDayMap.set(key, { variantId: data.variantId, dayKey: data.dayKey, sellPrices: [], buyPrices: [] });
             }
-            variantSparklines.get(variantId)!.push(data);
+            const entry = variantDayMap.get(key)!;
+            if (data.priceYen > 0) entry.sellPrices.push(data.priceYen);
+            if (data.buyPriceYen && data.buyPriceYen > 0) entry.buyPrices.push(data.buyPriceYen);
         });
 
-        // Sort and limit each variant's data
-        variantSparklines.forEach((prices, variantId) => {
-            const sorted = prices
-                .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-                .slice(-30); // Last 30 points max
-            variantSparklines.set(variantId, sorted);
+        // Step 3: Build per-variant sparkline arrays (sorted, last 30 days)
+        const variantBuySparklines = new Map<string, { dayKey: string; price: number }[]>();
+        const variantSellSparklines = new Map<string, { dayKey: string; price: number }[]>();
+
+        variantDayMap.forEach(data => {
+            if (!variantBuySparklines.has(data.variantId)) {
+                variantBuySparklines.set(data.variantId, []);
+                variantSellSparklines.set(data.variantId, []);
+            }
+            if (data.sellPrices.length > 0) {
+                const avg = data.sellPrices.reduce((a, b) => a + b, 0) / data.sellPrices.length;
+                variantBuySparklines.get(data.variantId)!.push({ dayKey: data.dayKey, price: avg });
+            }
+            if (data.buyPrices.length > 0) {
+                const avg = data.buyPrices.reduce((a, b) => a + b, 0) / data.buyPrices.length;
+                variantSellSparklines.get(data.variantId)!.push({ dayKey: data.dayKey, price: avg });
+            }
         });
+
+        const sortAndLimit = (arr: { dayKey: string; price: number }[]) =>
+            arr.sort((a, b) => a.dayKey.localeCompare(b.dayKey)).slice(-30);
+
+        variantBuySparklines.forEach((points, id) => variantBuySparklines.set(id, sortAndLimit(points)));
+        variantSellSparklines.forEach((points, id) => variantSellSparklines.set(id, sortAndLimit(points)));
 
         // Attach sparkline data to variants
         cards.forEach(card => {
             card.variants.forEach(variant => {
-                const sparklineData = variantSparklines.get(variant.id) || [];
-                // Get Hareruya prices if available, otherwise use first shop
-                const hareruyaData = sparklineData.filter((p: any) => p.shopName === 'Hareruya');
-                const finalData = (hareruyaData.length > 0 ? hareruyaData : sparklineData)
-                    .map((p: any) => ({
-                        price: p.priceYen,
-                        timestamp: p.timestamp.toISOString()
-                    }));
-
-                (variant as any).sparklineData = finalData;
+                (variant as any).sparklineBuyData = (variantBuySparklines.get(variant.id) || []).map(p => ({ price: p.price, timestamp: p.dayKey }));
+                (variant as any).sparklineSellData = (variantSellSparklines.get(variant.id) || []).map(p => ({ price: p.price, timestamp: p.dayKey }));
             });
         });
         }
@@ -137,7 +129,8 @@ export async function getDashboardData() {
         // Initialize empty sparklineData for all variants
         cards.forEach(card => {
             card.variants.forEach(variant => {
-                (variant as any).sparklineData = [];
+                (variant as any).sparklineBuyData = [];
+                (variant as any).sparklineSellData = [];
             });
         });
     }
