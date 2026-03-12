@@ -21,9 +21,10 @@ export async function GET(
     const dailyPrices = new Map<string, typeof prices[0]>();
     prices.forEach(price => {
         const dayKey = format(new Date(price.timestamp), 'yyyy-MM-dd');
-        const existing = dailyPrices.get(dayKey);
+        const shopDayKey = `${dayKey}-${price.shop.name}`;
+        const existing = dailyPrices.get(shopDayKey);
         if (!existing || new Date(price.timestamp) > new Date(existing.timestamp)) {
-            dailyPrices.set(dayKey, price);
+            dailyPrices.set(shopDayKey, price);
         }
     });
 
