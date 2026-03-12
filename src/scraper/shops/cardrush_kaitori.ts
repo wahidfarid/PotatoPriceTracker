@@ -17,6 +17,13 @@ export async function scrapeCardRushKaitori(setCode: string, prisma: PrismaClien
         variantByCN.set(`${v.collectorNumber}-${v.language}-${v.isFoil}`, v);
     }
 
+    const variantsByName = new Map<string, typeof allVariants>();
+    for (const v of allVariants) {
+        const nameKey = `${v.card.name}-${v.language}-${v.isFoil}`;
+        if (!variantsByName.has(nameKey)) variantsByName.set(nameKey, []);
+        variantsByName.get(nameKey)!.push(v);
+    }
+
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     const recentPrices = await prisma.price.findMany({
@@ -33,15 +40,45 @@ export async function scrapeCardRushKaitori(setCode: string, prisma: PrismaClien
         if (!recentPriceMap.has(p.variantId)) recentPriceMap.set(p.variantId, p);
     }
 
-    const toUpdate: { id: string; buyPriceYen: number }[] = [];
+    const toUpdate: { id: string; buyPriceYen: number; sellSourceUrl: string }[] = [];
     const toCreate: any[] = [];
+
+    const buildUrl = (page: number, cardName = '') => {
+        const base = 'https://cardrush.media/mtg/buying_prices';
+        const params = new URLSearchParams();
+        params.set('displayMode', 'リスト');
+        params.set('limit', '1000');
+        params.set('name', cardName);
+        params.set('rarity', '');
+        params.set('model_number', '');
+        params.set('amount', '');
+        params.set('page', String(page));
+        params.append('sort[key]', 'name');
+        params.append('sort[order]', 'desc');
+        params.append('associations[]', 'ocha_product');
+        params.append('to_json_option[methods]', 'name_with_condition');
+        params.append('to_json_option[except][]', 'original_image_source');
+        params.append('to_json_option[except][]', 'created_at');
+        params.append('to_json_option[include][ocha_product][only][]', 'id');
+        params.append('to_json_option[include][ocha_product][methods][]', 'image_source');
+        params.append('display_category[]', '高額系');
+        params.append('display_category[]', 'foil系');
+        params.append('display_category[]', 'スタンダード');
+        params.append('display_category[]', 'スタンダード最新弾');
+        params.append('display_category[]', 'パイオニア以下');
+        params.append('display_category[]', 'モダン以下最新弾');
+        params.set('pack_code', setCode.toUpperCase());
+        params.append('is_hot[]', 'true');
+        params.append('is_hot[]', 'false');
+        return `${base}?${params.toString()}`;
+    };
 
     try {
         let currentPage = 1;
-        let hasNext = true;
+        let lastPage = 1;
 
-        while (hasNext) {
-            const url = `https://cardrush.media/mtg/buying_prices?pack_code=${setCode.toUpperCase()}&limit=100&page=${currentPage}`;
+        do {
+            const url = buildUrl(currentPage);
             console.log(`[CardRush Kaitori] Scraping page ${currentPage}`);
 
             const res = await fetch(url, { headers: { 'User-Agent': UA } });
@@ -56,9 +93,11 @@ export async function scrapeCardRushKaitori(setCode: string, prisma: PrismaClien
 
             const nextData = JSON.parse(match[1]);
             const buyingPrices = nextData?.props?.pageProps?.buyingPrices || [];
+            if (currentPage === 1) {
+                lastPage = nextData?.props?.pageProps?.lastPage ?? 1;
+            }
 
-            console.log(`[CardRush Kaitori] Found ${buyingPrices.length} cards on page ${currentPage}`);
-            if (buyingPrices.length === 0) { hasNext = false; break; }
+            console.log(`[CardRush Kaitori] Found ${buyingPrices.length} cards on page ${currentPage} (lastPage: ${lastPage})`);
 
             for (const card of buyingPrices) {
                 if (!card) continue;
@@ -72,16 +111,27 @@ export async function scrapeCardRushKaitori(setCode: string, prisma: PrismaClien
                 const nameParts = fullName.split('/');
                 let cardName = nameParts.length > 1 ? nameParts[1].trim() : fullName.trim();
 
-                const isFoil = fullName.includes('(FOIL)') || fullName.includes('Foil') || fullName.includes('[Foil]');
-                cardName = cardName.replace(/\(FOIL\)/gi, '').replace(/\[Foil\]/gi, '').replace(/\(Foil\)/gi, '').trim();
+                const isFracture = fullName.includes('(フラクチャーFOIL)');
+                const isDoubleRainbow = fullName.includes('(ダブルレインボウFOIL)');
+                const isFoil = fullName.includes('(FOIL)') || isFracture || isDoubleRainbow;
+
+                const isShowcase = fullName.includes('(ショーケース枠)') || fullName.includes('(ショーケース)');
+                const isFullArt = fullName.includes('(フルアート)') || fullName.includes('(拡張アート)');
 
                 let lang = 'JP';
                 if (card.language === '英語') lang = 'EN';
 
-                const cnMatch = cardName.match(/\((\d+)\)/) || cardName.match(/#(\d+)/);
-                let collectorNumber = cnMatch ? parseInt(cnMatch[1], 10).toString() : null;
-                if (collectorNumber) {
-                    cardName = cardName.replace(/\((\d+)\)/, '').replace(/#(\d+)/, '').trim();
+                cardName = cardName
+                    .replace(/\(FOIL\)/gi, '').replace(/\[Foil\]/gi, '')
+                    .replace(/\(ショーケース枠\)/g, '').replace(/\(ショーケース\)/g, '')
+                    .replace(/\(ダブルレインボウFOIL\)/g, '').replace(/\(フルアート\)/g, '')
+                    .replace(/\(拡張アート\)/g, '').replace(/\(フラクチャーFOIL\)/g, '')
+                    .replace(/\(0*\d+\)/g, '').trim();
+
+                let collectorNumber: string | null = null;
+                if (card.model_number) {
+                    const cnMatch = card.model_number.match(/(\d+)/);
+                    if (cnMatch) collectorNumber = parseInt(cnMatch[1], 10).toString();
                 }
 
                 let variant: typeof allVariants[0] | undefined;
@@ -91,42 +141,37 @@ export async function scrapeCardRushKaitori(setCode: string, prisma: PrismaClien
                 }
 
                 if (!variant && cardName) {
-                    const candidates = allVariants.filter(v =>
-                        v.card.name.includes(cardName) &&
-                        v.language === lang &&
-                        v.isFoil === isFoil
-                    );
-
-                    if (candidates.length > 0) {
-                        const cnInNameMatch = fullName.match(/\(0*(\d+)\)/);
-                        if (cnInNameMatch && candidates.length > 1) {
-                            const cnInName = parseInt(cnInNameMatch[1], 10).toString();
-                            variant = candidates.find(v => v.collectorNumber === cnInName);
+                    const candidates = variantsByName.get(`${cardName}-${lang}-${isFoil}`) || [];
+                    if (isFracture) {
+                        variant = candidates.find(c => c.promoTypes?.includes('fracturefoil'));
+                    } else if (isShowcase) {
+                        variant = candidates.find(c => c.frameEffects?.includes('showcase'));
+                    } else if (isDoubleRainbow) {
+                        variant = candidates.find(c => c.promoTypes?.includes('doublerainbow'));
+                    } else if (isFullArt) {
+                        variant = candidates.find(c => c.frameEffects?.includes('inverted') || c.frameEffects?.includes('extendedart'));
+                    } else {
+                        const filtered = candidates.filter(c =>
+                            !c.frameEffects?.includes('showcase') &&
+                            !c.frameEffects?.includes('extendedart') &&
+                            !c.frameEffects?.includes('inverted') &&
+                            (c.promoTypes == null || !c.promoTypes.includes('doublerainbow'))
+                        );
+                        if (filtered.length === 1) variant = filtered[0];
+                        else if (filtered.length > 1) {
+                            console.log(`[CardRush Kaitori] AMBIGUOUS: "${cardName}" | ${lang}/${isFoil ? 'Foil' : 'Normal'}`);
                         }
-
-                        if (!variant) {
-                            const isShowcase = fullName.includes('(ショーケース枠)') || fullName.includes('(ショーケース)');
-                            const isExtendedArt = fullName.includes('(フルアート)') || fullName.includes('(拡張アート)');
-
-                            if ((isShowcase || isExtendedArt) && candidates.length > 1) {
-                                const specialVariant = candidates.find(v =>
-                                    v.frameEffects && (
-                                        (isShowcase && v.frameEffects.includes('showcase')) ||
-                                        (isExtendedArt && v.frameEffects.includes('extendedart'))
-                                    )
-                                );
-                                variant = specialVariant || candidates[0];
-                            } else {
-                                variant = candidates[0];
-                            }
-                        }
+                    }
+                    if (!variant && candidates.length === 0) {
+                        console.log(`[CardRush Kaitori] NO MATCH: "${cardName}" | ${lang}/${isFoil ? 'Foil' : 'Normal'}`);
                     }
                 }
 
                 if (variant) {
+                    const cardUrl = buildUrl(1, variant.card.name);
                     const recentPrice = recentPriceMap.get(variant.id);
                     if (recentPrice) {
-                        toUpdate.push({ id: recentPrice.id, buyPriceYen: priceYen });
+                        toUpdate.push({ id: recentPrice.id, buyPriceYen: priceYen, sellSourceUrl: cardUrl });
                     } else {
                         const lastSetPrice = recentPrices.find(p => p.variantId === variant!.id && p.priceYen > 0);
                         toCreate.push({
@@ -135,16 +180,14 @@ export async function scrapeCardRushKaitori(setCode: string, prisma: PrismaClien
                             priceYen: lastSetPrice?.priceYen ?? 0,
                             stock: lastSetPrice?.stock ?? 0,
                             buyPriceYen: priceYen,
-                            sellSourceUrl: `https://cardrush.media/mtg/buying_prices`
+                            sellSourceUrl: cardUrl
                         });
                     }
-                } else {
-                    console.log(`[CardRush Kaitori] No match for ${cardName} (${lang}/${isFoil ? 'Foil' : 'Normal'})`);
                 }
             }
 
             currentPage++;
-        }
+        } while (currentPage <= lastPage);
 
     } catch (e) {
         console.error(`[CardRush Kaitori] Error:`, e);
@@ -154,7 +197,7 @@ export async function scrapeCardRushKaitori(setCode: string, prisma: PrismaClien
         await prisma.$transaction(
             toUpdate.map(u => prisma.price.update({
                 where: { id: u.id },
-                data: { buyPriceYen: u.buyPriceYen, sellSourceUrl: `https://cardrush.media/mtg/buying_prices` }
+                data: { buyPriceYen: u.buyPriceYen, sellSourceUrl: u.sellSourceUrl }
             }))
         );
     }

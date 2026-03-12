@@ -211,9 +211,9 @@ export function CardList({ initialCards }: CardListProps) {
 
                                                 {/* CardRush Sell Price (Buy from customer, kaitori) */}
                                                 <td className="py-2 px-2 md:px-3 text-right font-mono text-gray-600 align-middle">
-                                                    {cardrushPrice?.sellSourceUrl ? (
+                                                    {cardrushBuy ? (
                                                         <a
-                                                            href={cardrushPrice.sellSourceUrl}
+                                                            href={`https://cardrush.media/mtg/buying_prices?${new URLSearchParams([['displayMode','リスト'],['limit','100'],['name',card.name],['rarity',''],['model_number',''],['amount',''],['page','1'],['sort[key]','name'],['sort[order]','desc'],['associations[]','ocha_product'],['to_json_option[methods]','name_with_condition'],['to_json_option[except][]','original_image_source'],['to_json_option[except][]','created_at'],['to_json_option[include][ocha_product][only][]','id'],['to_json_option[include][ocha_product][methods][]','image_source'],['display_category[]','高額系'],['display_category[]','foil系'],['display_category[]','スタンダード'],['display_category[]','スタンダード最新弾'],['display_category[]','パイオニア以下'],['display_category[]','モダン以下最新弾'],['is_hot[]','true'],['is_hot[]','false']]).toString()}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="hover:underline font-bold text-gray-600 hover:text-gray-800"
