@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { detectFinish } from '../utils/detectFinish';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
@@ -15,8 +16,8 @@ export async function scrapeHareruyaSet(setCode: string, prisma: PrismaClient) {
     const variantByCN = new Map<string, typeof allVariants[0]>();
     const variantsByName = new Map<string, typeof allVariants>();
     for (const v of allVariants) {
-        variantByCN.set(`${v.collectorNumber}-${v.language}-${v.isFoil}`, v);
-        const nameKey = `${v.card.name}-${v.language}-${v.isFoil}`;
+        variantByCN.set(`${v.collectorNumber}-${v.language}-${v.finish}`, v);
+        const nameKey = `${v.card.name}-${v.language}-${v.finish}`;
         if (!variantsByName.has(nameKey)) variantsByName.set(nameKey, []);
         variantsByName.get(nameKey)!.push(v);
     }
@@ -75,7 +76,7 @@ export async function scrapeHareruyaSet(setCode: string, prisma: PrismaClient) {
                 else if (doc.language == 1) lang = 'JP';
                 else if (title.includes('English') || title.includes('英語版') || title.includes('【EN】') || title.includes('[EN]')) lang = 'EN';
 
-                const isFoil = title.includes('Foil') || title.includes('【Foil】') || doc.foil_flg == 1;
+                const { isFoil, finish } = detectFinish(title, doc.foil_flg);
 
                 let matchName: string | null = null;
                 if (doc.product_name_en) {
@@ -95,10 +96,43 @@ export async function scrapeHareruyaSet(setCode: string, prisma: PrismaClient) {
                 let collectorNumber = cnMatch ? cnMatch[1] : null;
                 if (collectorNumber) collectorNumber = parseInt(collectorNumber, 10).toString();
 
-                let v = collectorNumber ? variantByCN.get(`${collectorNumber}-${lang}-${isFoil}`) : undefined;
+                let v = collectorNumber ? variantByCN.get(`${collectorNumber}-${lang}-${finish}`) : undefined;
                 if (!v && matchName) {
-                    const nameMatches = variantsByName.get(`${matchName}-${lang}-${isFoil}`) || [];
+                    const nameMatches = variantsByName.get(`${matchName}-${lang}-${finish}`) || [];
                     if (nameMatches.length === 1) v = nameMatches[0];
+                }
+
+                if (!v && finish !== 'foil' && finish !== 'nonfoil') {
+                    const foilVariant = collectorNumber
+                        ? variantByCN.get(`${collectorNumber}-${lang}-foil`)
+                        : (matchName ? (variantsByName.get(`${matchName}-${lang}-foil`) || [])[0] : undefined);
+
+                    const sourceVariant = foilVariant
+                        || (collectorNumber ? variantByCN.get(`${collectorNumber}-${lang}-nonfoil`) : undefined);
+
+                    if (sourceVariant) {
+                        console.log(`[Hareruya] Creating on-the-fly ${finish} variant for CN:${collectorNumber ?? matchName} ${lang}`);
+                        const created = await prisma.cardVariant.create({
+                            data: {
+                                cardId: sourceVariant.cardId,
+                                setCode: sourceVariant.setCode,
+                                collectorNumber: sourceVariant.collectorNumber,
+                                language: sourceVariant.language,
+                                isFoil: true,
+                                finish,
+                                scryfallId: sourceVariant.scryfallId,
+                                image: sourceVariant.image,
+                                frameEffects: sourceVariant.frameEffects,
+                                promoTypes: sourceVariant.promoTypes
+                            }
+                        });
+                        const createdWithCard = { ...created, card: sourceVariant.card };
+                        variantByCN.set(`${created.collectorNumber}-${created.language}-${finish}`, createdWithCard as typeof allVariants[0]);
+                        const nameKey = `${sourceVariant.card.name}-${created.language}-${finish}`;
+                        if (!variantsByName.has(nameKey)) variantsByName.set(nameKey, []);
+                        variantsByName.get(nameKey)!.push(createdWithCard as typeof allVariants[0]);
+                        v = createdWithCard as typeof allVariants[0];
+                    }
                 }
 
                 if (v) {

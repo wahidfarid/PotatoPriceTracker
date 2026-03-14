@@ -23,7 +23,7 @@ export async function getDashboardData() {
                         include: { shop: true }
                     }
                 },
-                orderBy: { collectorNumber: 'asc' }
+                orderBy: [{ collectorNumber: 'asc' }, { finish: 'asc' }]
             }
         },
         orderBy: { name: 'asc' }

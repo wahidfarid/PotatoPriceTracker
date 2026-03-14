@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { detectFinish } from '../utils/detectFinish';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
@@ -14,12 +15,12 @@ export async function scrapeCardRushKaitori(setCode: string, prisma: PrismaClien
 
     const variantByCN = new Map<string, typeof allVariants[0]>();
     for (const v of allVariants) {
-        variantByCN.set(`${v.collectorNumber}-${v.language}-${v.isFoil}`, v);
+        variantByCN.set(`${v.collectorNumber}-${v.language}-${v.finish}`, v);
     }
 
     const variantsByName = new Map<string, typeof allVariants>();
     for (const v of allVariants) {
-        const nameKey = `${v.card.name}-${v.language}-${v.isFoil}`;
+        const nameKey = `${v.card.name}-${v.language}-${v.finish}`;
         if (!variantsByName.has(nameKey)) variantsByName.set(nameKey, []);
         variantsByName.get(nameKey)!.push(v);
     }
@@ -111,9 +112,7 @@ export async function scrapeCardRushKaitori(setCode: string, prisma: PrismaClien
                 const nameParts = fullName.split('/');
                 let cardName = nameParts.length > 1 ? nameParts[1].trim() : fullName.trim();
 
-                const isFracture = fullName.includes('(フラクチャーFOIL)');
-                const isDoubleRainbow = fullName.includes('(ダブルレインボウFOIL)');
-                const isFoil = fullName.includes('(FOIL)') || isFracture || isDoubleRainbow;
+                const { finish } = detectFinish(fullName);
 
                 const isShowcase = fullName.includes('(ショーケース枠)') || fullName.includes('(ショーケース)');
                 const isFullArt = fullName.includes('(フルアート)') || fullName.includes('(拡張アート)');
@@ -126,6 +125,7 @@ export async function scrapeCardRushKaitori(setCode: string, prisma: PrismaClien
                     .replace(/\(ショーケース枠\)/g, '').replace(/\(ショーケース\)/g, '')
                     .replace(/\(ダブルレインボウFOIL\)/g, '').replace(/\(フルアート\)/g, '')
                     .replace(/\(拡張アート\)/g, '').replace(/\(フラクチャーFOIL\)/g, '')
+                    .replace(/\(サージFOIL\)/g, '')
                     .replace(/\(0*\d+\)/g, '').trim();
 
                 let collectorNumber: string | null = null;
@@ -137,16 +137,19 @@ export async function scrapeCardRushKaitori(setCode: string, prisma: PrismaClien
                 let variant: typeof allVariants[0] | undefined;
 
                 if (collectorNumber) {
-                    variant = variantByCN.get(`${collectorNumber}-${lang}-${isFoil}`);
+                    variant = variantByCN.get(`${collectorNumber}-${lang}-${finish}`);
                 }
 
                 if (!variant && cardName) {
-                    const candidates = variantsByName.get(`${cardName}-${lang}-${isFoil}`) || [];
-                    if (isFracture) {
+                    let candidates = variantsByName.get(`${cardName}-${lang}-${finish}`) || [];
+                    if (candidates.length === 0 && finish !== 'foil' && finish !== 'nonfoil') {
+                        candidates = variantsByName.get(`${cardName}-${lang}-foil`) || [];
+                    }
+                    if (finish === 'fracturefoil') {
                         variant = candidates.find(c => c.promoTypes?.includes('fracturefoil'));
                     } else if (isShowcase) {
                         variant = candidates.find(c => c.frameEffects?.includes('showcase'));
-                    } else if (isDoubleRainbow) {
+                    } else if (finish === 'doublerainbowfoil') {
                         variant = candidates.find(c => c.promoTypes?.includes('doublerainbow'));
                     } else if (isFullArt) {
                         variant = candidates.find(c => c.frameEffects?.includes('inverted') || c.frameEffects?.includes('extendedart'));
@@ -159,11 +162,11 @@ export async function scrapeCardRushKaitori(setCode: string, prisma: PrismaClien
                         );
                         if (filtered.length === 1) variant = filtered[0];
                         else if (filtered.length > 1) {
-                            console.log(`[CardRush Kaitori] AMBIGUOUS: "${cardName}" | ${lang}/${isFoil ? 'Foil' : 'Normal'}`);
+                            console.log(`[CardRush Kaitori] AMBIGUOUS: "${cardName}" | ${lang}/${finish}`);
                         }
                     }
                     if (!variant && candidates.length === 0) {
-                        console.log(`[CardRush Kaitori] NO MATCH: "${cardName}" | ${lang}/${isFoil ? 'Foil' : 'Normal'}`);
+                        console.log(`[CardRush Kaitori] NO MATCH: "${cardName}" | ${lang}/${finish}`);
                     }
                 }
 

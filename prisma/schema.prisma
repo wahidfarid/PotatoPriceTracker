@@ -30,13 +30,13 @@ model CardVariant {
   language        String
   isFoil          Boolean @default(false)
   image           String?
-  finish          String?
+  finish          String  @default("nonfoil")
   frameEffects    String?
   promoTypes      String?
   card            Card    @relation(fields: [cardId], references: [id])
   prices          Price[]
 
-  @@unique([setCode, collectorNumber, language, isFoil])
+  @@unique([setCode, collectorNumber, language, finish])
 }
 
 model Price {

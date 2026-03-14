@@ -51,9 +51,10 @@ async function seedSet(setCode: string) {
 
             // Create Variant
             const finishes = cardData.finishes || [];
-            const variantsToCreate = [];
-            if (finishes.includes('nonfoil')) variantsToCreate.push({ isFoil: false });
-            if (finishes.includes('foil')) variantsToCreate.push({ isFoil: true });
+            const variantsToCreate: { isFoil: boolean; finish: string }[] = [];
+            if (finishes.includes('nonfoil')) variantsToCreate.push({ isFoil: false, finish: 'nonfoil' });
+            if (finishes.includes('foil')) variantsToCreate.push({ isFoil: true, finish: 'foil' });
+            if (finishes.includes('etched')) variantsToCreate.push({ isFoil: true, finish: 'etchedfoil' });
 
             const languages = ['EN', 'JP'];
 
@@ -65,14 +66,14 @@ async function seedSet(setCode: string) {
                             setCode: setCode.toUpperCase(),
                             collectorNumber: cardData.collector_number,
                             language: l,
-                            isFoil: v.isFoil
+                            finish: v.finish
                         }
                     });
 
                     // Extract variant information
                     const frameEffects = cardData.frame_effects?.join(',') || null;
                     const promoTypes = cardData.promo_types?.join(',') || null;
-                    const finish = v.isFoil ? 'foil' : 'nonfoil';
+                    const { finish } = v;
 
                     if (!exists) {
                         await prisma.cardVariant.create({

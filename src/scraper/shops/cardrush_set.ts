@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { load } from 'cheerio';
+import { detectFinish } from '../utils/detectFinish';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
@@ -16,8 +17,8 @@ export async function scrapeCardRushSet(setCode: string, prisma: PrismaClient) {
     const variantByCN = new Map<string, typeof allVariants[0]>();
     const variantsByName = new Map<string, typeof allVariants>();
     for (const v of allVariants) {
-        variantByCN.set(`${v.collectorNumber}-${v.language}-${v.isFoil}`, v);
-        const nameKey = `${v.card.name}-${v.language}-${v.isFoil}`;
+        variantByCN.set(`${v.collectorNumber}-${v.language}-${v.finish}`, v);
+        const nameKey = `${v.card.name}-${v.language}-${v.finish}`;
         if (!variantsByName.has(nameKey)) variantsByName.set(nameKey, []);
         variantsByName.get(nameKey)!.push(v);
     }
@@ -63,11 +64,10 @@ export async function scrapeCardRushSet(setCode: string, prisma: PrismaClient) {
                         ? relativeHref
                         : `https://www.cardrush-mtg.jp${relativeHref}`;
 
+                    const { isFoil, finish } = detectFinish(title);
+
                     const isShowcase = title.includes('(ショーケース枠)');
-                    const isDoubleRainbow = title.includes('(ダブルレインボウFOIL)');
                     const isFullArt = title.includes('(Full Art)') || title.includes('(フルアート)');
-                    const isFracture = title.includes('Fracture FOIL') || title.includes('フラクチャーFOIL') || title.includes('(Fracture)');
-                    const isFoil = title.includes('(FOIL)') || isDoubleRainbow || isFracture;
 
                     const isEN = title.includes('《英語》');
                     const lang = isEN ? 'EN' : 'JP';
@@ -90,6 +90,7 @@ export async function scrapeCardRushSet(setCode: string, prisma: PrismaClient) {
                         .replace(/\(フルアート\)/g, '')
                         .replace(/\(Fracture FOIL\)/g, '')
                         .replace(/\(フラクチャーFOIL\)/g, '')
+                        .replace(/\(サージFOIL\)/g, '')
                         .replace(/\(0*\d+\)/g, '')
                         .trim();
 
@@ -103,16 +104,19 @@ export async function scrapeCardRushSet(setCode: string, prisma: PrismaClient) {
                     let v: typeof allVariants[0] | undefined;
 
                     if (collectorNumber) {
-                        v = variantByCN.get(`${collectorNumber}-${lang}-${isFoil}`);
+                        v = variantByCN.get(`${collectorNumber}-${lang}-${finish}`);
                     }
 
                     if (!v && !collectorNumber && cardName) {
-                        const candidates = variantsByName.get(`${cardName}-${lang}-${isFoil}`) || [];
-                        if (isFracture) {
+                        let candidates = variantsByName.get(`${cardName}-${lang}-${finish}`) || [];
+                        if (candidates.length === 0 && finish !== 'foil' && finish !== 'nonfoil') {
+                            candidates = variantsByName.get(`${cardName}-${lang}-foil`) || [];
+                        }
+                        if (finish === 'fracturefoil') {
                             v = candidates.find(c => c.promoTypes?.includes('fracturefoil'));
                         } else if (isShowcase) {
                             v = candidates.find(c => c.frameEffects?.includes('showcase'));
-                        } else if (isDoubleRainbow) {
+                        } else if (finish === 'doublerainbowfoil') {
                             v = candidates.find(c => c.promoTypes?.includes('doublerainbow'));
                         } else if (isFullArt) {
                             v = candidates.find(c => c.frameEffects?.includes('inverted') || c.frameEffects?.includes('extendedart'));
@@ -126,11 +130,36 @@ export async function scrapeCardRushSet(setCode: string, prisma: PrismaClient) {
                             if (filtered.length === 1) v = filtered[0];
                             else if (filtered.length > 1) {
                                 const candidateCNs = filtered.map(x => x.collectorNumber).join(', ');
-                                console.log(`[CardRush] AMBIGUOUS: "${cardName}" | ${lang}/${isFoil ? 'Foil' : 'Normal'} | found ${filtered.length}: [${candidateCNs}]`);
+                                console.log(`[CardRush] AMBIGUOUS: "${cardName}" | ${lang}/${finish} | found ${filtered.length}: [${candidateCNs}]`);
                             }
                         }
                         if (!v && candidates.length === 0) {
-                            console.log(`[CardRush] NO MATCH: "${cardName}" | CN:none | ${lang}/${isFoil ? 'Foil' : 'Normal'}`);
+                            console.log(`[CardRush] NO MATCH: "${cardName}" | CN:none | ${lang}/${finish}`);
+                        }
+                    }
+
+                    if (!v && collectorNumber && finish !== 'foil' && finish !== 'nonfoil') {
+                        const foilVariant = variantByCN.get(`${collectorNumber}-${lang}-foil`)
+                            || variantByCN.get(`${collectorNumber}-${lang}-nonfoil`);
+                        if (foilVariant) {
+                            console.log(`[CardRush] Creating on-the-fly ${finish} variant for CN:${collectorNumber} ${lang}`);
+                            prisma.cardVariant.create({
+                                data: {
+                                    cardId: foilVariant.cardId,
+                                    setCode: foilVariant.setCode,
+                                    collectorNumber: foilVariant.collectorNumber,
+                                    language: foilVariant.language,
+                                    isFoil: true,
+                                    finish,
+                                    scryfallId: foilVariant.scryfallId,
+                                    image: foilVariant.image,
+                                    frameEffects: foilVariant.frameEffects,
+                                    promoTypes: foilVariant.promoTypes
+                                }
+                            }).then(created => {
+                                const createdWithCard = { ...created, card: foilVariant.card };
+                                variantByCN.set(`${created.collectorNumber}-${created.language}-${finish}`, createdWithCard as typeof allVariants[0]);
+                            }).catch(e => console.error(`[CardRush] Error creating on-the-fly variant:`, e));
                         }
                     }
 
@@ -145,7 +174,7 @@ export async function scrapeCardRushSet(setCode: string, prisma: PrismaClient) {
                             buyPriceYen: latestKaitori?.buyPriceYen ?? null,
                             sellSourceUrl: latestKaitori?.sellSourceUrl ?? null
                         });
-                        console.log(`[CardRush] Matched ${cardName} -> CN:${v.collectorNumber} (${lang}/${isFoil ? 'Foil' : 'Normal'})`);
+                        console.log(`[CardRush] Matched ${cardName} -> CN:${v.collectorNumber} (${lang}/${finish})`);
                     }
                 } catch (e) {
                     // ignore per-item errors

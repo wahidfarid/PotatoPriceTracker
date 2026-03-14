@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { load } from 'cheerio';
+import { detectFinish } from '../utils/detectFinish';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
@@ -14,7 +15,7 @@ export async function scrapeHareruyaKaitori(setCode: string, prisma: PrismaClien
 
     const variantByCN = new Map<string, typeof allVariants[0]>();
     for (const v of allVariants) {
-        variantByCN.set(`${v.collectorNumber}-${v.language}-${v.isFoil}`, v);
+        variantByCN.set(`${v.collectorNumber}-${v.language}-${v.finish}`, v);
     }
 
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -72,9 +73,9 @@ export async function scrapeHareruyaKaitori(setCode: string, prisma: PrismaClien
 
                 let lang = 'JP';
                 if (title.includes('【EN】') || title.includes('[EN]') || title.includes('英語版')) lang = 'EN';
-                const isFoil = title.includes('Foil') || title.includes('【Foil】');
+                const { finish } = detectFinish(title);
 
-                const v = collectorNumber ? variantByCN.get(`${collectorNumber}-${lang}-${isFoil}`) : undefined;
+                const v = collectorNumber ? variantByCN.get(`${collectorNumber}-${lang}-${finish}`) : undefined;
                 if (!v) continue;
 
                 const recentPrice = recentPriceMap.get(v.id);

@@ -28,23 +28,19 @@ export async function runScraper(options: ScraperOptions = {}) {
         const tasks: Promise<void>[] = [];
 
         if (runHareruya) {
-            const hrBuy = runBuy
-                ? Promise.all(SETS.map(s => scrapeHareruyaSet(s, prisma).catch(e => console.error(`[Hareruya Set] ${s}:`, e))))
-                : Promise.resolve([]);
-            const hrSell = runSell
-                ? Promise.all(SETS.map(s => scrapeHareruyaKaitori(s, prisma).catch(e => console.error(`[Hareruya Kaitori] ${s}:`, e))))
-                : Promise.resolve([]);
-            tasks.push(Promise.all([hrBuy, hrSell]).then(() => {}));
+            const doHareruya = async () => {
+                if (runBuy) await Promise.all(SETS.map(s => scrapeHareruyaSet(s, prisma).catch(e => console.error(`[Hareruya Set] ${s}:`, e))));
+                if (runSell) await Promise.all(SETS.map(s => scrapeHareruyaKaitori(s, prisma).catch(e => console.error(`[Hareruya Kaitori] ${s}:`, e))));
+            };
+            tasks.push(doHareruya());
         }
 
         if (runCardrush) {
-            const crBuy = runBuy
-                ? Promise.all(SETS.map(s => scrapeCardRushSet(s, prisma).catch(e => console.error(`[CardRush Set] ${s}:`, e))))
-                : Promise.resolve([]);
-            const crSell = runSell
-                ? Promise.all(SETS.map(s => scrapeCardRushKaitori(s, prisma).catch(e => console.error(`[CardRush Kaitori] ${s}:`, e))))
-                : Promise.resolve([]);
-            tasks.push(Promise.all([crBuy, crSell]).then(() => {}));
+            const doCardrush = async () => {
+                if (runBuy) await Promise.all(SETS.map(s => scrapeCardRushSet(s, prisma).catch(e => console.error(`[CardRush Set] ${s}:`, e))));
+                if (runSell) await Promise.all(SETS.map(s => scrapeCardRushKaitori(s, prisma).catch(e => console.error(`[CardRush Kaitori] ${s}:`, e))));
+            };
+            tasks.push(doCardrush());
         }
 
         await Promise.all(tasks);

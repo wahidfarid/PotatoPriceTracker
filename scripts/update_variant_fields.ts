@@ -27,7 +27,11 @@ async function updateVariantFields() {
 
             const frameEffects = cardData.frame_effects?.join(',') || null;
             const promoTypes = cardData.promo_types?.join(',') || null;
-            const finish = variant.isFoil ? 'foil' : 'nonfoil';
+            const scryfallFinishes: string[] = cardData.finishes || [];
+            let finish = 'nonfoil';
+            if (variant.isFoil) {
+                finish = (scryfallFinishes.includes('etched') && !scryfallFinishes.includes('foil')) ? 'etchedfoil' : 'foil';
+            }
 
             await prisma.cardVariant.update({
                 where: { id: variant.id },

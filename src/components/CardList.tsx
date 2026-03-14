@@ -134,7 +134,15 @@ export function CardList({ initialCards }: CardListProps) {
                                                 )}
 
                                                 <td className="py-2 px-2 md:px-3 align-middle whitespace-nowrap">
-                                                    {variant.isFoil ? (
+                                                    {variant.finish === 'surgefoil' ? (
+                                                        <span className="bg-purple-100 text-purple-900 text-[9px] md:text-[11px] px-1.5 md:px-2 py-0.5 rounded-full font-bold border border-purple-200 shadow-sm">Surge</span>
+                                                    ) : variant.finish === 'etchedfoil' ? (
+                                                        <span className="bg-teal-100 text-teal-900 text-[9px] md:text-[11px] px-1.5 md:px-2 py-0.5 rounded-full font-bold border border-teal-200 shadow-sm">Etched</span>
+                                                    ) : variant.finish === 'fracturefoil' ? (
+                                                        <span className="bg-rose-100 text-rose-900 text-[9px] md:text-[11px] px-1.5 md:px-2 py-0.5 rounded-full font-bold border border-rose-200 shadow-sm">Fracture</span>
+                                                    ) : variant.finish === 'doublerainbowfoil' ? (
+                                                        <span className="bg-gradient-to-r from-pink-100 to-purple-100 text-purple-900 text-[9px] md:text-[11px] px-1.5 md:px-2 py-0.5 rounded-full font-bold border border-purple-200 shadow-sm">DblRnbw</span>
+                                                    ) : variant.finish === 'foil' ? (
                                                         <span className="bg-amber-100 text-amber-900 text-[9px] md:text-[11px] px-1.5 md:px-2 py-0.5 rounded-full font-bold border border-amber-200 shadow-sm">Foil</span>
                                                     ) : (
                                                         <span className="text-gray-400 text-[9px] md:text-[11px] font-medium border border-gray-100 px-1.5 md:px-2 py-0.5 rounded-full">Norm</span>

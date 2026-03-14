@@ -8,6 +8,7 @@ interface Variant {
     collectorNumber: string;
     language: string;
     isFoil: boolean;
+    finish: string;
     image?: string | null;
 }
 
@@ -106,7 +107,7 @@ export function PriceHistoryModal({ cardName, cardId, variants, isOpen, onClose 
                             return (
                                 <div key={variant.id} className="border-b pb-6 last:border-b-0">
                                     <h3 className="text-lg font-semibold mb-4 text-gray-900">
-                                        #{variant.collectorNumber} - {variant.language} {variant.isFoil ? 'Foil' : 'Normal'}
+                                        #{variant.collectorNumber} - {variant.language} {variant.finish === 'nonfoil' ? 'Normal' : variant.finish === 'foil' ? 'Foil' : variant.finish === 'surgefoil' ? 'Surge Foil' : variant.finish === 'etchedfoil' ? 'Etched Foil' : variant.finish === 'fracturefoil' ? 'Fracture Foil' : variant.finish === 'doublerainbowfoil' ? 'Double Rainbow Foil' : variant.finish}
                                     </h3>
                                     {history.length === 0 ? (
                                         <div className="h-[300px] flex items-center justify-center text-gray-600">
