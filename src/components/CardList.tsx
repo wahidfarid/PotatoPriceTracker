@@ -7,9 +7,10 @@ import { SparklineChart } from './SparklineChart';
 
 interface CardListProps {
     initialCards: any[];
+    lastUpdated: string | null;
 }
 
-export function CardList({ initialCards }: CardListProps) {
+export function CardList({ initialCards, lastUpdated }: CardListProps) {
     const [search, setSearch] = useState('');
     const [openModalCardId, setOpenModalCardId] = useState<string | null>(null);
 
@@ -45,6 +46,11 @@ export function CardList({ initialCards }: CardListProps) {
                     <div className="text-xs text-gray-500 hidden md:block">
                         {filteredCards.length} cards matching
                     </div>
+                    {lastUpdated && (
+                        <div className="text-xs text-gray-400 hidden md:block whitespace-nowrap">
+                            Last updated: {new Date(lastUpdated).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </div>
+                    )}
                 </div>
             </div>
 

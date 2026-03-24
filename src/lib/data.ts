@@ -134,5 +134,11 @@ export async function getDashboardData() {
         });
     }
 
-    return cards;
+    const latestPrice = await prisma.$queryRaw<[{ maxTs: bigint | null }]>`
+        SELECT MAX(timestamp) as maxTs FROM Price
+    `;
+    const maxTs = latestPrice[0]?.maxTs;
+    const lastUpdated = maxTs ? new Date(Number(maxTs)).toISOString() : null;
+
+    return { cards, lastUpdated };
 }
