@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/data';
 import { format } from 'date-fns';
 
+export const revalidate = 86400;
+
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ variantId: string }> | { variantId: string } }

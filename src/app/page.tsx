@@ -1,7 +1,7 @@
-import { getDashboardData } from '@/lib/data';
-import { CardList } from '@/components/CardList';
+import { getDashboardData } from "@/lib/data";
+import { CardList } from "@/components/CardList";
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 86400;
 
 export default async function Home() {
   const { cards, lastUpdated } = await getDashboardData();
