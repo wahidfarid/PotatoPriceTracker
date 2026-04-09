@@ -20,7 +20,7 @@ async function _getDashboardData() {
         include: {
           prices: {
             orderBy: { timestamp: "desc" },
-            take: 6, // 2 active shops × 3-day buffer covers missed scrapes
+            take: 3,
             include: { shop: true },
           },
         },
