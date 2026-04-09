@@ -20,7 +20,7 @@ async function _getDashboardData() {
         include: {
           prices: {
             orderBy: { timestamp: "desc" },
-            take: 3, // One per active shop (Hareruya, CardRush, BigMagic)
+            take: 6, // 2 active shops × 3-day buffer covers missed scrapes
             include: { shop: true },
           },
         },
@@ -34,7 +34,6 @@ async function _getDashboardData() {
   // Wrap in try-catch so page still loads if this fails
   try {
     const variantIds = cards.flatMap((card) => card.variants.map((v) => v.id));
-
     if (variantIds.length > 0) {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

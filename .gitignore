@@ -45,3 +45,12 @@ next-env.d.ts
 # SQLite database (now using Turso cloud)
 prisma/*.db
 prisma/*.db-journal
+
+# Turso migration artifacts
+data_only.sql
+dump.sql
+import.sql
+ordered_import.sql
+schema_only.sql
+build_import.sh
+price_chunk_*
