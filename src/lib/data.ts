@@ -5,18 +5,18 @@ import { prisma } from "./prisma";
 
 export { prisma };
 
-async function _getDashboardData() {
-  // Fetch details for cards that have at least one variant? Or all cards in the set?
-  // We seeded all cards.
-  // We want to show cards.
+const DEFAULT_SET = "SOS";
+
+async function _getDashboardData(setCode: string) {
   const cards = await prisma.card.findMany({
     where: {
       variants: {
-        some: {}, // Only show cards that have at least one tracked variant
+        some: { setCode },
       },
     },
     include: {
       variants: {
+        where: { setCode },
         include: {
           prices: {
             orderBy: { timestamp: "desc" },
@@ -204,8 +204,10 @@ async function _getDashboardData() {
   return { cards, lastUpdated };
 }
 
-export const getDashboardData = unstable_cache(
-  _getDashboardData,
-  ["dashboard-data"],
-  { revalidate: 86400, tags: ["dashboard-data"] },
-);
+export function getDashboardData(setCode?: string) {
+  const set = setCode || DEFAULT_SET;
+  return unstable_cache(() => _getDashboardData(set), ["dashboard-data", set], {
+    revalidate: 86400,
+    tags: ["dashboard-data"],
+  })();
+}
