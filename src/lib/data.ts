@@ -38,16 +38,16 @@ async function _getDashboardData() {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      // Fetch all prices for sparklines (last 30 days) - limit to avoid huge queries
-      // Use select to only get what we need
-      // Note: timestamps are stored as Unix milliseconds (integers) in SQLite,
-      // so we need to compare with milliseconds, not Date objects
+      // Fetch all prices for sparklines (last 30 days)
+      // Turso returns timestamps as ISO strings; SQLite as integer ms.
+      // Compare using both formats so the filter works on either backend.
       const thirtyDaysAgoMs = thirtyDaysAgo.getTime();
+      const thirtyDaysAgoIso = thirtyDaysAgo.toISOString();
 
       const allPrices = await prisma.$queryRaw<
         Array<{
           variantId: string;
-          timestamp: bigint;
+          timestamp: bigint | string;
           priceYen: number;
           buyPriceYen: number | null;
           shopName: string;
@@ -57,7 +57,7 @@ async function _getDashboardData() {
                 FROM Price p
                 JOIN Shop s ON p.shopId = s.id
                 WHERE p.variantId IN (${Prisma.join(variantIds)})
-                  AND p.timestamp >= ${thirtyDaysAgoMs}
+                  AND p.timestamp >= ${thirtyDaysAgoIso}
                   AND p.priceYen > 0
                 ORDER BY p.timestamp ASC
             `;
@@ -76,8 +76,11 @@ async function _getDashboardData() {
 
       allPrices.forEach((price) => {
         try {
-          const timestampMs = Number(price.timestamp);
-          const dayKey = format(new Date(timestampMs), "yyyy-MM-dd");
+          const ts = price.timestamp;
+          const date =
+            typeof ts === "string" ? new Date(ts) : new Date(Number(ts));
+          const timestampMs = date.getTime();
+          const dayKey = format(date, "yyyy-MM-dd");
           const key = `${price.variantId}-${dayKey}-${price.shopName}`;
           const existing = shopDayMap.get(key);
           if (!existing || timestampMs > existing.ts) {
@@ -185,11 +188,18 @@ async function _getDashboardData() {
     });
   }
 
-  const latestPrice = await prisma.$queryRaw<[{ maxTs: bigint | null }]>`
+  const latestPrice = await prisma.$queryRaw<
+    [{ maxTs: bigint | string | null }]
+  >`
         SELECT MAX(timestamp) as maxTs FROM Price
     `;
   const maxTs = latestPrice[0]?.maxTs;
-  const lastUpdated = maxTs ? new Date(Number(maxTs)).toISOString() : null;
+  let lastUpdated: string | null = null;
+  if (maxTs) {
+    const ts =
+      typeof maxTs === "string" ? new Date(maxTs) : new Date(Number(maxTs));
+    lastUpdated = ts.toISOString();
+  }
 
   return { cards, lastUpdated };
 }
@@ -197,5 +207,5 @@ async function _getDashboardData() {
 export const getDashboardData = unstable_cache(
   _getDashboardData,
   ["dashboard-data"],
-  { revalidate: 86400 },
+  { revalidate: 86400, tags: ["dashboard-data"] },
 );
