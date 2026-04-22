@@ -1,6 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import {
+  memo,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { useRouter } from "next/navigation";
 import { PriceHistoryModal } from "./PriceHistoryModal";
 import { SparklineChart } from "./SparklineChart";
 
@@ -9,11 +17,299 @@ interface SetInfo {
   name: string;
 }
 
+const formatPrice = (val: number | undefined | null) =>
+  val ? `¥${val.toLocaleString()}` : "-";
+
+interface CardRowProps {
+  card: any;
+  setName: string;
+  onOpenModal: (cardId: string) => void;
+}
+
+const CardRow = memo(function CardRow({
+  card,
+  setName,
+  onOpenModal,
+}: CardRowProps) {
+  return (
+    <>
+      <div className="flex justify-between items-baseline mb-3 md:mb-4 border-b pb-2">
+        <h2 className="text-lg md:text-xl font-bold text-gray-900 truncate">
+          {card.name}
+        </h2>
+        <span className="text-xs md:text-sm text-gray-400 font-medium">
+          {setName}
+        </span>
+      </div>
+
+      <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
+        <table className="w-full text-xs md:text-sm text-left border-collapse min-w-[500px] md:min-w-0">
+          <thead>
+            <tr className="bg-gray-100 text-gray-700 border-b-2 border-gray-200">
+              <th className="py-2 px-2 md:px-3 w-8 md:w-12 font-bold">#</th>
+              <th className="py-2 px-2 md:px-3 w-32 md:w-48 font-bold">
+                Image
+              </th>
+              <th className="py-2 px-2 md:px-3 w-16 md:w-20 font-bold">Ver</th>
+              <th className="py-2 px-2 md:px-3 w-8 md:w-12 font-bold">Ln</th>
+              <th
+                className="py-2 px-2 md:px-3 text-center border-l-2 border-gray-200 bg-gray-50"
+                colSpan={2}
+              >
+                Last 30 days trend
+              </th>
+              <th
+                className="py-2 px-2 md:px-3 text-center border-l-2 border-gray-200 bg-gray-50"
+                colSpan={2}
+              >
+                Hareruya
+              </th>
+              <th
+                className="py-2 px-2 md:px-3 text-center border-l-2 border-gray-200 bg-blue-50"
+                colSpan={2}
+              >
+                CardRush
+              </th>
+            </tr>
+            <tr className="bg-gray-50 text-gray-500 text-[10px] md:text-[11px] uppercase tracking-wider border-b border-gray-100">
+              <th className="py-1 px-2 md:px-3"></th>
+              <th className="py-1 px-2 md:px-3"></th>
+              <th className="py-1 px-2 md:px-3"></th>
+              <th className="py-1 px-2 md:px-3"></th>
+              <th className="py-1 px-2 md:px-3 text-center border-l-2 border-gray-200">
+                Buy
+              </th>
+              <th className="py-1 px-2 md:px-3 text-center">Sell</th>
+              <th className="py-1 px-2 md:px-3 text-right border-l-2 border-gray-200">
+                Buy
+              </th>
+              <th className="py-1 px-2 md:px-3 text-right">Sell</th>
+              <th className="py-1 px-2 md:px-3 text-right border-l-2 border-gray-200 bg-blue-50">
+                Buy
+              </th>
+              <th className="py-1 px-2 md:px-3 text-right bg-blue-50">Sell</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {card.variants.map((variant: any, index: number, arr: any[]) => {
+              const hareruyaPrice = variant.prices.find(
+                (p: any) => p.shop.name === "Hareruya",
+              );
+              const cardrushPrice = variant.prices.find(
+                (p: any) => p.shop.name === "CardRush",
+              );
+
+              const hareruyaSell = hareruyaPrice?.priceYen;
+              const hareruyaBuy = hareruyaPrice?.buyPriceYen;
+              const cardrushSell = cardrushPrice?.priceYen;
+              const cardrushBuy = cardrushPrice?.buyPriceYen;
+
+              const isFirstOfCollectorNumber =
+                index === 0 ||
+                arr[index - 1].collectorNumber !== variant.collectorNumber;
+
+              let rowSpan = 1;
+              if (isFirstOfCollectorNumber) {
+                for (let i = index + 1; i < arr.length; i++) {
+                  if (arr[i].collectorNumber === variant.collectorNumber) {
+                    rowSpan++;
+                  } else {
+                    break;
+                  }
+                }
+              }
+
+              return (
+                <tr
+                  key={variant.id}
+                  className="hover:bg-blue-50/30 transition-colors"
+                >
+                  <td className="py-2 px-2 md:px-3 text-gray-400 font-mono font-medium align-middle">
+                    {variant.collectorNumber}
+                  </td>
+
+                  {isFirstOfCollectorNumber && (
+                    <td
+                      className="py-2 px-2 md:px-3 align-middle border-r border-gray-100 bg-white cursor-pointer"
+                      rowSpan={rowSpan}
+                      onClick={() => onOpenModal(card.id)}
+                    >
+                      {variant.scryfallId ? (
+                        <div className="flex justify-center p-1">
+                          <img
+                            src={`https://cards.scryfall.io/normal/front/${variant.scryfallId.charAt(0)}/${variant.scryfallId.charAt(1)}/${variant.scryfallId}.jpg`}
+                            alt="art"
+                            className="w-24 md:w-44 h-auto rounded-md shadow-md hover:opacity-80 transition-opacity"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-24 md:w-44 h-36 md:h-64 bg-gray-50 rounded-md border border-dashed border-gray-200 flex items-center justify-center text-gray-300">
+                          No Image
+                        </div>
+                      )}
+                    </td>
+                  )}
+
+                  <td className="py-2 px-2 md:px-3 align-middle whitespace-nowrap">
+                    {variant.finish === "surgefoil" ? (
+                      <span className="bg-purple-100 text-purple-900 text-[9px] md:text-[11px] px-1.5 md:px-2 py-0.5 rounded-full font-bold border border-purple-200 shadow-sm">
+                        Surge
+                      </span>
+                    ) : variant.finish === "etchedfoil" ? (
+                      <span className="bg-teal-100 text-teal-900 text-[9px] md:text-[11px] px-1.5 md:px-2 py-0.5 rounded-full font-bold border border-teal-200 shadow-sm">
+                        Etched
+                      </span>
+                    ) : variant.finish === "fracturefoil" ? (
+                      <span className="bg-rose-100 text-rose-900 text-[9px] md:text-[11px] px-1.5 md:px-2 py-0.5 rounded-full font-bold border border-rose-200 shadow-sm">
+                        Fracture
+                      </span>
+                    ) : variant.finish === "doublerainbowfoil" ? (
+                      <span className="bg-gradient-to-r from-pink-100 to-purple-100 text-purple-900 text-[9px] md:text-[11px] px-1.5 md:px-2 py-0.5 rounded-full font-bold border border-purple-200 shadow-sm">
+                        DblRnbw
+                      </span>
+                    ) : variant.finish === "foil" ? (
+                      <span className="bg-amber-100 text-amber-900 text-[9px] md:text-[11px] px-1.5 md:px-2 py-0.5 rounded-full font-bold border border-amber-200 shadow-sm">
+                        Foil
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-[9px] md:text-[11px] font-medium border border-gray-100 px-1.5 md:px-2 py-0.5 rounded-full">
+                        Norm
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 px-2 md:px-3 font-bold text-gray-800 align-middle text-center">
+                    {variant.language}
+                  </td>
+
+                  <td className="py-2 px-2 md:px-3 border-l-2 border-gray-200 bg-gray-50/50 align-middle text-center">
+                    <SparklineChart
+                      variantId={variant.id}
+                      data={variant.sparklineBuyData || []}
+                      onClick={() => onOpenModal(card.id)}
+                    />
+                  </td>
+                  <td className="py-2 px-2 md:px-3 bg-gray-50/50 align-middle text-center">
+                    <SparklineChart
+                      variantId={variant.id}
+                      data={variant.sparklineSellData || []}
+                      onClick={() => onOpenModal(card.id)}
+                    />
+                  </td>
+
+                  <td className="py-2 px-2 md:px-3 text-right font-mono border-l-2 border-gray-200 bg-gray-50/50 align-middle">
+                    {hareruyaPrice ? (
+                      <a
+                        href={hareruyaPrice.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`hover:underline font-bold ${hareruyaPrice.stock === 0 ? "text-red-500" : "text-blue-600 hover:text-blue-800"}`}
+                      >
+                        {formatPrice(hareruyaSell)}
+                      </a>
+                    ) : (
+                      <span className="text-gray-300">-</span>
+                    )}
+                  </td>
+
+                  <td className="py-2 px-2 md:px-3 text-right font-mono text-gray-600 align-middle">
+                    {hareruyaPrice?.sellSourceUrl ? (
+                      <a
+                        href={hareruyaPrice.sellSourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline font-bold text-gray-600 hover:text-gray-800"
+                      >
+                        {formatPrice(hareruyaBuy)}
+                      </a>
+                    ) : (
+                      formatPrice(hareruyaBuy)
+                    )}
+                  </td>
+
+                  <td className="py-2 px-2 md:px-3 text-right font-mono border-l-2 border-gray-200 bg-blue-50/50 align-middle">
+                    {cardrushPrice ? (
+                      <a
+                        href={cardrushPrice.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`hover:underline font-bold ${
+                          cardrushPrice.stock === 0
+                            ? "text-red-500"
+                            : "text-blue-600 hover:text-blue-800"
+                        }`}
+                      >
+                        {formatPrice(cardrushSell)}
+                      </a>
+                    ) : (
+                      <span className="text-gray-300">-</span>
+                    )}
+                  </td>
+
+                  <td className="py-2 px-2 md:px-3 text-right font-mono text-gray-600 align-middle">
+                    {cardrushBuy ? (
+                      <a
+                        href={`https://cardrush.media/mtg/buying_prices?${new URLSearchParams(
+                          [
+                            ["displayMode", "リスト"],
+                            ["limit", "100"],
+                            ["name", card.name],
+                            ["rarity", ""],
+                            ["model_number", ""],
+                            ["amount", ""],
+                            ["page", "1"],
+                            ["sort[key]", "name"],
+                            ["sort[order]", "desc"],
+                            ["associations[]", "ocha_product"],
+                            ["to_json_option[methods]", "name_with_condition"],
+                            [
+                              "to_json_option[except][]",
+                              "original_image_source",
+                            ],
+                            ["to_json_option[except][]", "created_at"],
+                            [
+                              "to_json_option[include][ocha_product][only][]",
+                              "id",
+                            ],
+                            [
+                              "to_json_option[include][ocha_product][methods][]",
+                              "image_source",
+                            ],
+                            ["display_category[]", "高額系"],
+                            ["display_category[]", "foil系"],
+                            ["display_category[]", "スタンダード"],
+                            ["display_category[]", "スタンダード最新弾"],
+                            ["display_category[]", "パイオニア以下"],
+                            ["display_category[]", "モダン以下最新弾"],
+                            ["is_hot[]", "true"],
+                            ["is_hot[]", "false"],
+                          ],
+                        ).toString()}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline font-bold text-gray-600 hover:text-gray-800"
+                      >
+                        {formatPrice(cardrushBuy)}
+                      </a>
+                    ) : (
+                      formatPrice(cardrushBuy)
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+});
+
 interface CardListProps {
   initialCards: any[];
   lastUpdated: string | null;
   currentSet: string;
   sets: SetInfo[];
+  initialSearch?: string;
 }
 
 export function CardList({
@@ -21,16 +317,53 @@ export function CardList({
   lastUpdated,
   currentSet,
   sets,
+  initialSearch,
 }: CardListProps) {
-  const [search, setSearch] = useState("");
+  const router = useRouter();
+  const [search, setSearch] = useState(initialSearch ?? "");
+  const deferredSearch = useDeferredValue(search);
   const [openModalCardId, setOpenModalCardId] = useState<string | null>(null);
 
-  const filteredCards = initialCards.filter((card) =>
-    card.name.toLowerCase().includes(search.toLowerCase()),
-  );
+  const setCodes = new Set(sets.map((s) => s.code.toUpperCase()));
+  const parts = deferredSearch.trim().split(/\s+/);
+  const firstUpper = (parts[0] ?? "").toUpperCase();
+  const hasSetPrefix =
+    setCodes.has(firstUpper) &&
+    (parts.length > 1 || deferredSearch.endsWith(" "));
+  const numberQuery = hasSetPrefix ? parts.slice(1).join(" ") : "";
 
-  const formatPrice = (val: number | undefined | null) =>
-    val ? `¥${val.toLocaleString()}` : "-";
+  const filteredCards =
+    hasSetPrefix && firstUpper === currentSet
+      ? initialCards.filter(
+          (card) =>
+            numberQuery === "" ||
+            card.variants.some((v: any) =>
+              v.collectorNumber.startsWith(numberQuery),
+            ),
+        )
+      : initialCards.filter((card) =>
+          card.name.toLowerCase().includes(deferredSearch.toLowerCase()),
+        );
+
+  const matchedIds = new Set(filteredCards.map((c: any) => c.id));
+
+  useEffect(() => {
+    if (hasSetPrefix && firstUpper !== currentSet) {
+      const url = numberQuery
+        ? `/?set=${firstUpper}&q=${encodeURIComponent(numberQuery)}`
+        : `/?set=${firstUpper}`;
+      router.replace(url);
+    }
+  }, [hasSetPrefix, firstUpper, numberQuery, currentSet, router]);
+
+  const handleOpenModal = useCallback(
+    (id: string) => setOpenModalCardId(id),
+    [],
+  );
+  const currentSetName = useMemo(
+    () => sets.find((s) => s.code === currentSet)?.name || currentSet,
+    [sets, currentSet],
+  );
 
   return (
     <>
@@ -64,7 +397,7 @@ export function CardList({
               </svg>
             </div>
             <div className="text-xs text-gray-500 hidden md:block">
-              {filteredCards.length} cards matching
+              {matchedIds.size} cards matching
             </div>
             {lastUpdated && (
               <div className="text-xs text-gray-400 hidden md:block whitespace-nowrap">
@@ -96,310 +429,20 @@ export function CardList({
       </div>
 
       <div className="pt-24 md:pt-28 grid gap-4 md:gap-8">
-        {filteredCards.map((card) => (
+        {initialCards.map((card) => (
           <div
             key={card.id}
-            className="bg-white p-4 md:p-6 rounded-lg shadow-md border border-gray-100"
+            className={`bg-white p-4 md:p-6 rounded-lg shadow-md border border-gray-100${matchedIds.has(card.id) ? "" : " hidden"}`}
           >
-            <div className="flex justify-between items-baseline mb-3 md:mb-4 border-b pb-2">
-              <h2 className="text-lg md:text-xl font-bold text-gray-900 truncate">
-                {card.name}
-              </h2>
-              <span className="text-xs md:text-sm text-gray-400 font-medium">
-                {sets.find((s) => s.code === currentSet)?.name || currentSet}
-              </span>
-            </div>
-
-            <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
-              <table className="w-full text-xs md:text-sm text-left border-collapse min-w-[500px] md:min-w-0">
-                <thead>
-                  <tr className="bg-gray-100 text-gray-700 border-b-2 border-gray-200">
-                    <th className="py-2 px-2 md:px-3 w-8 md:w-12 font-bold">
-                      #
-                    </th>
-                    <th className="py-2 px-2 md:px-3 w-32 md:w-48 font-bold">
-                      Image
-                    </th>
-                    <th className="py-2 px-2 md:px-3 w-16 md:w-20 font-bold">
-                      Ver
-                    </th>
-                    <th className="py-2 px-2 md:px-3 w-8 md:w-12 font-bold">
-                      Ln
-                    </th>
-                    <th
-                      className="py-2 px-2 md:px-3 text-center border-l-2 border-gray-200 bg-gray-50"
-                      colSpan={2}
-                    >
-                      Last 30 days trend
-                    </th>
-                    <th
-                      className="py-2 px-2 md:px-3 text-center border-l-2 border-gray-200 bg-gray-50"
-                      colSpan={2}
-                    >
-                      Hareruya
-                    </th>
-                    <th
-                      className="py-2 px-2 md:px-3 text-center border-l-2 border-gray-200 bg-blue-50"
-                      colSpan={2}
-                    >
-                      CardRush
-                    </th>
-                  </tr>
-                  <tr className="bg-gray-50 text-gray-500 text-[10px] md:text-[11px] uppercase tracking-wider border-b border-gray-100">
-                    <th className="py-1 px-2 md:px-3"></th>
-                    <th className="py-1 px-2 md:px-3"></th>
-                    <th className="py-1 px-2 md:px-3"></th>
-                    <th className="py-1 px-2 md:px-3"></th>
-                    {/* Trend */}
-                    <th className="py-1 px-2 md:px-3 text-center border-l-2 border-gray-200">
-                      Buy
-                    </th>
-                    <th className="py-1 px-2 md:px-3 text-center">Sell</th>
-                    {/* Hareruya */}
-                    <th className="py-1 px-2 md:px-3 text-right border-l-2 border-gray-200">
-                      Buy
-                    </th>
-                    <th className="py-1 px-2 md:px-3 text-right">Sell</th>
-                    {/* CardRush */}
-                    <th className="py-1 px-2 md:px-3 text-right border-l-2 border-gray-200 bg-blue-50">
-                      Buy
-                    </th>
-                    <th className="py-1 px-2 md:px-3 text-right bg-blue-50">
-                      Sell
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {card.variants.map(
-                    (variant: any, index: number, arr: any[]) => {
-                      const hareruyaPrice = variant.prices.find(
-                        (p: any) => p.shop.name === "Hareruya",
-                      );
-                      const cardrushPrice = variant.prices.find(
-                        (p: any) => p.shop.name === "CardRush",
-                      );
-
-                      const hareruyaSell = hareruyaPrice?.priceYen;
-                      const hareruyaBuy = hareruyaPrice?.buyPriceYen;
-                      const cardrushSell = cardrushPrice?.priceYen;
-                      const cardrushBuy = cardrushPrice?.buyPriceYen;
-
-                      const isFirstOfCollectorNumber =
-                        index === 0 ||
-                        arr[index - 1].collectorNumber !==
-                          variant.collectorNumber;
-
-                      let rowSpan = 1;
-                      if (isFirstOfCollectorNumber) {
-                        for (let i = index + 1; i < arr.length; i++) {
-                          if (
-                            arr[i].collectorNumber === variant.collectorNumber
-                          ) {
-                            rowSpan++;
-                          } else {
-                            break;
-                          }
-                        }
-                      }
-
-                      return (
-                        <tr
-                          key={variant.id}
-                          className="hover:bg-blue-50/30 transition-colors"
-                        >
-                          <td className="py-2 px-2 md:px-3 text-gray-400 font-mono font-medium align-middle">
-                            {variant.collectorNumber}
-                          </td>
-
-                          {isFirstOfCollectorNumber && (
-                            <td
-                              className="py-2 px-2 md:px-3 align-middle border-r border-gray-100 bg-white cursor-pointer"
-                              rowSpan={rowSpan}
-                              onClick={() => setOpenModalCardId(card.id)}
-                            >
-                              {variant.scryfallId ? (
-                                <div className="flex justify-center p-1">
-                                  <img
-                                    src={`https://cards.scryfall.io/normal/front/${variant.scryfallId.charAt(0)}/${variant.scryfallId.charAt(1)}/${variant.scryfallId}.jpg`}
-                                    alt="art"
-                                    className="w-24 md:w-44 h-auto rounded-md shadow-md hover:opacity-80 transition-opacity"
-                                  />
-                                </div>
-                              ) : (
-                                <div className="w-24 md:w-44 h-36 md:h-64 bg-gray-50 rounded-md border border-dashed border-gray-200 flex items-center justify-center text-gray-300">
-                                  No Image
-                                </div>
-                              )}
-                            </td>
-                          )}
-
-                          <td className="py-2 px-2 md:px-3 align-middle whitespace-nowrap">
-                            {variant.finish === "surgefoil" ? (
-                              <span className="bg-purple-100 text-purple-900 text-[9px] md:text-[11px] px-1.5 md:px-2 py-0.5 rounded-full font-bold border border-purple-200 shadow-sm">
-                                Surge
-                              </span>
-                            ) : variant.finish === "etchedfoil" ? (
-                              <span className="bg-teal-100 text-teal-900 text-[9px] md:text-[11px] px-1.5 md:px-2 py-0.5 rounded-full font-bold border border-teal-200 shadow-sm">
-                                Etched
-                              </span>
-                            ) : variant.finish === "fracturefoil" ? (
-                              <span className="bg-rose-100 text-rose-900 text-[9px] md:text-[11px] px-1.5 md:px-2 py-0.5 rounded-full font-bold border border-rose-200 shadow-sm">
-                                Fracture
-                              </span>
-                            ) : variant.finish === "doublerainbowfoil" ? (
-                              <span className="bg-gradient-to-r from-pink-100 to-purple-100 text-purple-900 text-[9px] md:text-[11px] px-1.5 md:px-2 py-0.5 rounded-full font-bold border border-purple-200 shadow-sm">
-                                DblRnbw
-                              </span>
-                            ) : variant.finish === "foil" ? (
-                              <span className="bg-amber-100 text-amber-900 text-[9px] md:text-[11px] px-1.5 md:px-2 py-0.5 rounded-full font-bold border border-amber-200 shadow-sm">
-                                Foil
-                              </span>
-                            ) : (
-                              <span className="text-gray-400 text-[9px] md:text-[11px] font-medium border border-gray-100 px-1.5 md:px-2 py-0.5 rounded-full">
-                                Norm
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2 px-2 md:px-3 font-bold text-gray-800 align-middle text-center">
-                            {variant.language}
-                          </td>
-
-                          {/* Trend — Buy sparkline */}
-                          <td className="py-2 px-2 md:px-3 border-l-2 border-gray-200 bg-gray-50/50 align-middle text-center">
-                            <SparklineChart
-                              variantId={variant.id}
-                              data={variant.sparklineBuyData || []}
-                              onClick={() => setOpenModalCardId(card.id)}
-                            />
-                          </td>
-                          {/* Trend — Sell sparkline */}
-                          <td className="py-2 px-2 md:px-3 bg-gray-50/50 align-middle text-center">
-                            <SparklineChart
-                              variantId={variant.id}
-                              data={variant.sparklineSellData || []}
-                              onClick={() => setOpenModalCardId(card.id)}
-                            />
-                          </td>
-
-                          {/* Hareruya Buy Price (Sell from shop to customer) */}
-                          <td className="py-2 px-2 md:px-3 text-right font-mono border-l-2 border-gray-200 bg-gray-50/50 align-middle">
-                            {hareruyaPrice ? (
-                              <a
-                                href={hareruyaPrice.sourceUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`hover:underline font-bold ${hareruyaPrice.stock === 0 ? "text-red-500" : "text-blue-600 hover:text-blue-800"}`}
-                              >
-                                {formatPrice(hareruyaSell)}
-                              </a>
-                            ) : (
-                              <span className="text-gray-300">-</span>
-                            )}
-                          </td>
-
-                          {/* Hareruya Sell Price (Buy from customer, kaitori) */}
-                          <td className="py-2 px-2 md:px-3 text-right font-mono text-gray-600 align-middle">
-                            {hareruyaPrice?.sellSourceUrl ? (
-                              <a
-                                href={hareruyaPrice.sellSourceUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="hover:underline font-bold text-gray-600 hover:text-gray-800"
-                              >
-                                {formatPrice(hareruyaBuy)}
-                              </a>
-                            ) : (
-                              formatPrice(hareruyaBuy)
-                            )}
-                          </td>
-
-                          {/* CardRush Buy Price (Sell from shop to customer) */}
-                          <td className="py-2 px-2 md:px-3 text-right font-mono border-l-2 border-gray-200 bg-blue-50/50 align-middle">
-                            {cardrushPrice ? (
-                              <a
-                                href={cardrushPrice.sourceUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`hover:underline font-bold ${
-                                  cardrushPrice.stock === 0
-                                    ? "text-red-500"
-                                    : "text-blue-600 hover:text-blue-800"
-                                }`}
-                              >
-                                {formatPrice(cardrushSell)}
-                              </a>
-                            ) : (
-                              <span className="text-gray-300">-</span>
-                            )}
-                          </td>
-
-                          {/* CardRush Sell Price (Buy from customer, kaitori) */}
-                          <td className="py-2 px-2 md:px-3 text-right font-mono text-gray-600 align-middle">
-                            {cardrushBuy ? (
-                              <a
-                                href={`https://cardrush.media/mtg/buying_prices?${new URLSearchParams(
-                                  [
-                                    ["displayMode", "リスト"],
-                                    ["limit", "100"],
-                                    ["name", card.name],
-                                    ["rarity", ""],
-                                    ["model_number", ""],
-                                    ["amount", ""],
-                                    ["page", "1"],
-                                    ["sort[key]", "name"],
-                                    ["sort[order]", "desc"],
-                                    ["associations[]", "ocha_product"],
-                                    [
-                                      "to_json_option[methods]",
-                                      "name_with_condition",
-                                    ],
-                                    [
-                                      "to_json_option[except][]",
-                                      "original_image_source",
-                                    ],
-                                    ["to_json_option[except][]", "created_at"],
-                                    [
-                                      "to_json_option[include][ocha_product][only][]",
-                                      "id",
-                                    ],
-                                    [
-                                      "to_json_option[include][ocha_product][methods][]",
-                                      "image_source",
-                                    ],
-                                    ["display_category[]", "高額系"],
-                                    ["display_category[]", "foil系"],
-                                    ["display_category[]", "スタンダード"],
-                                    [
-                                      "display_category[]",
-                                      "スタンダード最新弾",
-                                    ],
-                                    ["display_category[]", "パイオニア以下"],
-                                    ["display_category[]", "モダン以下最新弾"],
-                                    ["is_hot[]", "true"],
-                                    ["is_hot[]", "false"],
-                                  ],
-                                ).toString()}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="hover:underline font-bold text-gray-600 hover:text-gray-800"
-                              >
-                                {formatPrice(cardrushBuy)}
-                              </a>
-                            ) : (
-                              formatPrice(cardrushBuy)
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    },
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <CardRow
+              card={card}
+              setName={currentSetName}
+              onOpenModal={handleOpenModal}
+            />
           </div>
         ))}
 
-        {filteredCards.length === 0 && (
+        {matchedIds.size === 0 && (
           <div className="text-center py-20 bg-white rounded-lg shadow-inner border-2 border-dashed border-gray-200">
             <div className="text-gray-400 text-lg font-medium">
               No cards found matching "{search}"
@@ -417,11 +460,12 @@ export function CardList({
       {openModalCardId && (
         <PriceHistoryModal
           cardName={
-            filteredCards.find((c) => c.id === openModalCardId)?.name || ""
+            initialCards.find((c: any) => c.id === openModalCardId)?.name || ""
           }
           cardId={openModalCardId}
           variants={
-            filteredCards.find((c) => c.id === openModalCardId)?.variants || []
+            initialCards.find((c: any) => c.id === openModalCardId)?.variants ||
+            []
           }
           isOpen={true}
           onClose={() => setOpenModalCardId(null)}

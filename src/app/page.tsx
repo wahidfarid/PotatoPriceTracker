@@ -16,11 +16,13 @@ const SETS = [
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ set?: string }>;
+  searchParams: Promise<{ set?: string; q?: string }>;
 }) {
-  const { set } = await searchParams;
+  const { set, q } = await searchParams;
   const currentSet = SETS.find((s) => s.code === set)?.code || SETS[0].code;
   const { cards, lastUpdated } = await getDashboardData(currentSet);
+
+  const initialSearch = q ? `${currentSet} ${q}` : undefined;
 
   return (
     <main className="min-h-screen bg-gray-50 pb-20">
@@ -30,6 +32,7 @@ export default async function Home({
           lastUpdated={lastUpdated}
           currentSet={currentSet}
           sets={SETS}
+          initialSearch={initialSearch}
         />
       </div>
     </main>
