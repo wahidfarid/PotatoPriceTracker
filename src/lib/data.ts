@@ -1,7 +1,12 @@
+import { gzip, gunzip } from "node:zlib";
+import { promisify } from "node:util";
 import { Prisma } from "@prisma/client";
 import { format } from "date-fns";
 import { unstable_cache } from "next/cache";
 import { prisma } from "./prisma";
+
+const gzipAsync = promisify(gzip);
+const gunzipAsync = promisify(gunzip);
 
 export { prisma };
 
@@ -204,10 +209,22 @@ async function _getDashboardData(setCode: string) {
   return { cards, lastUpdated };
 }
 
-export function getDashboardData(setCode?: string) {
+async function _getDashboardDataCompressed(setCode: string): Promise<string> {
+  const data = await _getDashboardData(setCode);
+  const json = JSON.stringify(data);
+  const compressed = await gzipAsync(json);
+  return compressed.toString("base64");
+}
+
+export async function getDashboardData(setCode?: string) {
   const set = setCode || DEFAULT_SET;
-  return unstable_cache(() => _getDashboardData(set), ["dashboard-data", set], {
-    revalidate: 86400,
-    tags: ["dashboard-data"],
-  })();
+  const b64 = await unstable_cache(
+    () => _getDashboardDataCompressed(set),
+    ["dashboard-data", set],
+    { revalidate: 86400, tags: ["dashboard-data"] },
+  )();
+  const decompressed = await gunzipAsync(Buffer.from(b64, "base64"));
+  return JSON.parse(decompressed.toString("utf8")) as Awaited<
+    ReturnType<typeof _getDashboardData>
+  >;
 }
