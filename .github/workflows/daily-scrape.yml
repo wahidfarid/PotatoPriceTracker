@@ -36,4 +36,10 @@ jobs:
       - name: Trigger Vercel cache revalidation
         if: success()
         run: |
-          curl -s -X POST "${{ secrets.VERCEL_URL }}/api/revalidate?secret=${{ secrets.REVALIDATION_SECRET }}"
+          response=$(curl -sS -o /tmp/resp -w "%{http_code}" -X POST \
+            -H "x-vercel-protection-bypass: ${{ secrets.VERCEL_BYPASS_TOKEN }}" \
+            -H "x-vercel-set-bypass-cookie: samesitenone" \
+            "${{ secrets.VERCEL_URL }}/api/revalidate?secret=${{ secrets.REVALIDATION_SECRET }}")
+          echo "HTTP $response"
+          cat /tmp/resp
+          test "$response" = "200"
