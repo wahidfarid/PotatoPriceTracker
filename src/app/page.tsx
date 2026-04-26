@@ -1,5 +1,6 @@
 import { getDashboardData } from "@/lib/data";
 import { CardList } from "@/components/CardList";
+import { LanguageProvider } from "@/lib/LanguageContext";
 
 const SETS = [
   { code: "SOS", name: "Strixhaven" },
@@ -26,15 +27,17 @@ export default async function Home({
 
   return (
     <main className="min-h-screen bg-gray-50 pb-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <CardList
-          initialCards={cards}
-          lastUpdated={lastUpdated}
-          currentSet={currentSet}
-          sets={SETS}
-          initialSearch={initialSearch}
-        />
-      </div>
+      <LanguageProvider>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <CardList
+            initialCards={cards}
+            lastUpdated={lastUpdated}
+            currentSet={currentSet}
+            sets={SETS}
+            initialSearch={initialSearch}
+          />
+        </div>
+      </LanguageProvider>
     </main>
   );
 }
