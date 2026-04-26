@@ -6,7 +6,7 @@ A specialized price tracking application for Magic: The Gathering, currently tra
 
 - **Lorwyn Eclipsed**: ECL (main), ECC (Commander), SPG (restricted, year:2026 filter)
 - **TMNT Universes Beyond** (released 2026-03-06): TMT (main, ~320 cards), TMC (Commander, ~132 cards), PZA (masterpiece, 20 cards)
-- **Secrets of Strixhaven** (releasing 2026-04-24): SOS (main), SOC (Commander), SOA (Mystical Archive)
+- **Secrets of Strixhaven** (released 2026-04-24): SOS (main), SOC (Commander), SOA (Mystical Archive)
 
 ## Core Tech Stack
 
@@ -29,14 +29,16 @@ A specialized price tracking application for Magic: The Gathering, currently tra
 
 ## Database Schema
 
-- `Card`: abstract card entity (Name, OracleID).
+- `Card`: abstract card entity (Name, OracleID, **nameJa** — Japanese printed name from Scryfall, null if no JP printing exists yet).
 - `CardVariant`: concrete print (Set, CN, Lang, Foil, ScryfallID, Image).
 - `Price`: point-in-time snapshot (Price, BuyPrice, Stock, Timestamp).
 
 ## Current Status
 
 - Large thumbnails enabled (w-44).
-- Fixed search bar (English only).
+- Search bar supports English name, Japanese name, and set code + collector number (e.g. `SOS 42`); has history dropdown and autocomplete.
 - Red price coloring for out-of-stock items.
+- EN/JP language switcher in the header (persisted in `localStorage` under `pt-lang`). All UI text and card names switch language. i18n strings live in `src/lib/i18n.ts`; context/hook in `src/lib/LanguageContext.tsx`.
+- Set tab navigation shows a loading spinner and dims the card list while the new set loads.
 - Support for ECL, ECC, SPG (year:2026), TMT, TMC, PZA, SOS, SOC, and SOA.
-- **Deployment**: Static SQLite hosting on Vercel with absolute path resolution in `src/lib/data.ts`.
+- **Deployment**: Turso (libSQL) in production; local `prisma/dev.db` (SQLite) for development. Data layer in `src/lib/data.ts` uses `unstable_cache` with a 24h TTL keyed by set code.
