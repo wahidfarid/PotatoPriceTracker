@@ -36,6 +36,26 @@ export const STRINGS = {
     en: "No price history available",
     ja: "価格履歴はありません",
   },
+  bulk: { en: "Bulk", ja: "一括" },
+  bulkTitle: { en: "Bulk Price Lookup", ja: "一括価格検索" },
+  bulkPlaceholder: {
+    en: "Paste a deck list here (MTG Arena format)…\n\n4 Lightning Bolt\n4x Sol Ring\n1 Elvish Mystic (SOS) 161\n1 Force of Will (ECL) 42 *F*",
+    ja: "デッキリストをここに貼り付けてください（MTGアリーナ形式）…\n\n4 稲妻\n4x 太陽の指輪\n1 Elvish Mystic (SOS) 161\n1 Force of Will (ECL) 42 *F*",
+  },
+  priceList: { en: "Price List", ja: "価格一覧" },
+  unparsedLines: { en: "Unrecognized lines", ja: "認識できない行" },
+  notFound: { en: "Not found", ja: "見つからない" },
+  total: { en: "Total", ja: "合計" },
+  pickPrinting: { en: "Pick printing", ja: "版を選択" },
+  noFoilTracked: {
+    en: "no foil tracked, using non-foil",
+    ja: "フォイル未収録、通常版を使用",
+  },
+  noNonfoilTracked: {
+    en: "no non-foil tracked, using foil",
+    ja: "通常版未収録、フォイル版を使用",
+  },
+  lineKaitori: { en: "Kaitori", ja: "買取" },
 } as const;
 
 export const SET_NAMES_JA: Record<string, string> = {

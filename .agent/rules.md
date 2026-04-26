@@ -31,6 +31,7 @@ These rules are derived from the user's feedback and preferred interaction style
 - **Seeding**: Always verify set codes on Scryfall before updating the seeder.
   - JP names are fetched in one bulk Scryfall search per set (`set:xxx+lang:ja+unique:prints`), not per card. Only `printed_name` is stored — never fall back to `name` (which is always English). Re-running the seeder backfills any card where `nameJa IS NULL`, so it is safe to re-run after Scryfall adds new JP data.
   - After seeding, clear `.next/cache` locally and `POST /api/revalidate` in production to flush the 24h gzip cache.
+- **Turso SQL — avoid correlated subqueries**: A pattern like `WHERE p.timestamp = (SELECT MAX(p2.timestamp) WHERE p2.variantId = p.variantId ...)` re-executes the subquery for every outer row, causing a full table scan and multi-minute hangs. Use a flat `WHERE variantId IN (...)` query (the existing `@@index([variantId])` on Price makes this fast) and deduplicate in JS, or a single `GROUP BY` pass in a derived table. Never use a correlated subquery against the Price table.
 - **Schema changes**: `prisma db push` only updates local SQLite (`prisma/dev.db`). Turso requires a separate migration — either `turso db shell <db-name> "ALTER TABLE ..."` (requires `turso auth login`) or via the libsql client directly using env credentials. Always do both.
 - **Scraping**: Normalize collector numbers (remove leading zeros) for matching.
 - **Testing**: Use debug scripts (e.g., `scripts/debug_*.ts`) to isolate matching issues before running full-set crawls.

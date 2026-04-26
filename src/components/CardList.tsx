@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { PriceHistoryModal } from "./PriceHistoryModal";
 import { SparklineChart } from "./SparklineChart";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -617,6 +618,14 @@ export function CardList({
                 )}
               </div>
             )}
+
+            {/* Bulk link */}
+            <Link
+              href="/bulk"
+              className="px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors flex-shrink-0"
+            >
+              {t("bulk", lang)}
+            </Link>
 
             {/* Language switcher */}
             <div className="flex rounded-full overflow-hidden border border-gray-200 text-xs font-medium flex-shrink-0">
