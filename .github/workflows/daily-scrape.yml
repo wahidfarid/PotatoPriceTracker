@@ -44,3 +44,11 @@ jobs:
           echo "HTTP $response"
           cat /tmp/resp
           test "$response" = "200"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          curl -s -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"content\":\"⚠️ Daily price scrape failed — check https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            || true
