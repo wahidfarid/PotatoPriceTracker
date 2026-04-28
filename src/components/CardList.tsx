@@ -242,6 +242,7 @@ const CardRow = memo(function CardRow({
                       variantId={variant.id}
                       data={variant.sparklineBuyData || []}
                       onClick={() => onOpenModal(card.id)}
+                      lang={lang}
                     />
                   </td>
                   <td className="py-2 px-2 md:px-3 bg-gray-50/50 align-middle text-center">
@@ -249,6 +250,7 @@ const CardRow = memo(function CardRow({
                       variantId={variant.id}
                       data={variant.sparklineSellData || []}
                       onClick={() => onOpenModal(card.id)}
+                      lang={lang}
                     />
                   </td>
 

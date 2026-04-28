@@ -316,7 +316,7 @@ export function BulkPricer() {
         <div className="bg-white rounded-lg shadow-md border border-gray-100 p-4 md:p-6 mt-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-gray-500">
-              {lang === "ja" ? "テキストを貼り付け" : "Paste text"}
+              {t("pasteText", lang)}
             </span>
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -335,9 +335,7 @@ export function BulkPricer() {
                   d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
                 />
               </svg>
-              {lang === "ja"
-                ? "Moxfield CSV を読み込む"
-                : "Import Moxfield .csv"}
+              {t("importCsv", lang)}
             </button>
             <input
               ref={fileInputRef}
@@ -384,7 +382,7 @@ export function BulkPricer() {
                       d="M4 12a8 8 0 018-8v8z"
                     />
                   </svg>
-                  {lang === "ja" ? "検索中…" : "Pricing…"}
+                  {t("pricing", lang)}
                 </span>
               ) : (
                 t("priceList", lang)
@@ -393,11 +391,11 @@ export function BulkPricer() {
             {hasResults && (
               <span className="text-sm text-gray-400">
                 {displayRows!.filter((r) => !r.notFound).length}{" "}
-                {lang === "ja" ? "枚" : "cards priced"}
+                {t("cardsPriced", lang)}
                 {displayRows!.some((r) => r.notFound) && (
                   <span className="text-orange-400 ml-2">
                     · {displayRows!.filter((r) => r.notFound).length}{" "}
-                    {lang === "ja" ? "件未検出" : "not found"}
+                    {t("notFoundCount", lang)}
                   </span>
                 )}
               </span>
@@ -432,25 +430,25 @@ export function BulkPricer() {
                 <thead>
                   <tr className="bg-gray-100 text-gray-700 border-b-2 border-gray-200">
                     <th className="py-2 px-2 md:px-3 w-10 font-bold text-right">
-                      {lang === "ja" ? "枚" : "Qty"}
+                      {t("colQty", lang)}
                     </th>
                     <th className="py-2 px-2 md:px-3 font-bold">
-                      {lang === "ja" ? "カード名" : "Card"}
+                      {t("colCard", lang)}
                     </th>
                     <th className="py-2 px-2 md:px-3 font-bold">
-                      {lang === "ja" ? "版" : "Printing"}
+                      {t("colPrinting", lang)}
                     </th>
                     <th
                       className="py-2 px-2 md:px-3 text-center border-l-2 border-gray-200 bg-gray-50"
                       colSpan={2}
                     >
-                      {lang === "ja" ? "晴れる屋" : "Hareruya"}
+                      {t("shopHareruya", lang)}
                     </th>
                     <th
                       className="py-2 px-2 md:px-3 text-center border-l-2 border-gray-200 bg-blue-50"
                       colSpan={2}
                     >
-                      {lang === "ja" ? "カードラッシュ" : "CardRush"}
+                      {t("shopCardrush", lang)}
                     </th>
                     <th className="py-2 px-2 md:px-3 text-right border-l-2 border-gray-300 bg-yellow-50 font-bold">
                       {t("lineKaitori", lang)}

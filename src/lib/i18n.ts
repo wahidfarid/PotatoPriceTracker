@@ -57,6 +57,24 @@ export const STRINGS = {
     ja: "通常版未収録、フォイル版を使用",
   },
   lineKaitori: { en: "Kaitori", ja: "買取" },
+  pasteText: { en: "Paste text", ja: "テキストを貼り付け" },
+  importCsv: { en: "Import Moxfield .csv", ja: "Moxfield CSV を読み込む" },
+  pricing: { en: "Pricing…", ja: "検索中…" },
+  cardsPriced: { en: "cards priced", ja: "枚" },
+  notFoundCount: { en: "not found", ja: "件未検出" },
+  colQty: { en: "Qty", ja: "枚" },
+  colCard: { en: "Card", ja: "カード名" },
+  colPrinting: { en: "Printing", ja: "版" },
+  shopHareruya: { en: "Hareruya", ja: "晴れる屋" },
+  shopCardrush: { en: "CardRush", ja: "カードラッシュ" },
+  sparklineEmpty: {
+    en: "No price history — click to view",
+    ja: "価格履歴なし — クリックで表示",
+  },
+  sparklineClick: {
+    en: "Click to view full price history",
+    ja: "クリックで価格履歴を表示",
+  },
 } as const;
 
 export const SET_NAMES_JA: Record<string, string> = {
