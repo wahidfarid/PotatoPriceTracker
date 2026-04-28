@@ -170,6 +170,7 @@ export function BulkPricer() {
   const { lang } = useLanguage();
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [rows, setRows] = useState<ResolvedRow[] | null>(null);
   const [unparsed, setUnparsed] = useState<string[]>([]);
   // rowKey → alternate variantId chosen by user
@@ -215,6 +216,7 @@ export function BulkPricer() {
     if (parsed.length === 0) return;
 
     setLoading(true);
+    setFetchError(null);
     setPicks(new Map());
     try {
       const res = await fetch("/api/bulk-price", {
@@ -224,7 +226,7 @@ export function BulkPricer() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        alert((err as any)?.error ?? "Request failed");
+        setFetchError((err as any)?.error ?? "Request failed");
         return;
       }
       const data = await res.json();
@@ -401,6 +403,12 @@ export function BulkPricer() {
               </span>
             )}
           </div>
+
+          {fetchError && (
+            <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+              {fetchError}
+            </div>
+          )}
 
           {unparsed.length > 0 && (
             <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-3">

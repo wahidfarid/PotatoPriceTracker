@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import dynamic from "next/dynamic";
 import { SparklineChart } from "./SparklineChart";
 
@@ -188,9 +189,12 @@ const CardRow = memo(function CardRow({
                     >
                       {variant.scryfallId ? (
                         <div className="flex justify-center p-1">
-                          <img
+                          <Image
                             src={`https://cards.scryfall.io/normal/front/${variant.scryfallId.charAt(0)}/${variant.scryfallId.charAt(1)}/${variant.scryfallId}.jpg`}
-                            alt="art"
+                            alt={card.name}
+                            width={488}
+                            height={680}
+                            sizes="(max-width: 768px) 96px, 176px"
                             className="w-24 md:w-44 h-auto rounded-md shadow-md hover:opacity-80 transition-opacity"
                           />
                         </div>
@@ -255,6 +259,9 @@ const CardRow = memo(function CardRow({
                         target="_blank"
                         rel="noopener noreferrer"
                         className={`hover:underline font-bold ${hareruyaPrice.stock === 0 ? "text-red-500" : "text-blue-600 hover:text-blue-800"}`}
+                        title={
+                          hareruyaPrice.stock === 0 ? "Out of stock" : undefined
+                        }
                       >
                         {formatPrice(hareruyaSell)}
                       </a>
@@ -289,6 +296,9 @@ const CardRow = memo(function CardRow({
                             ? "text-red-500"
                             : "text-blue-600 hover:text-blue-800"
                         }`}
+                        title={
+                          cardrushPrice.stock === 0 ? "Out of stock" : undefined
+                        }
                       >
                         {formatPrice(cardrushSell)}
                       </a>
@@ -431,8 +441,6 @@ export function CardList({
             (card.nameJa && card.nameJa.toLowerCase().includes(q))
           );
         });
-
-  const matchedIds = new Set(filteredCards.map((c: any) => c.id));
 
   // Autocomplete suggestions from client-side card list
   const suggestions = useMemo(() => {
@@ -611,10 +619,10 @@ export function CardList({
             </div>
 
             <div className="text-xs text-gray-500 hidden md:block">
-              {matchedIds.size} {t("cardsMatching", lang)}
+              {filteredCards.length} {t("cardsMatching", lang)}
             </div>
             {lastUpdated && (
-              <div className="text-xs text-gray-400 hidden md:block whitespace-nowrap">
+              <div className="text-xs text-gray-500 hidden md:block whitespace-nowrap">
                 {t("lastUpdated", lang)}{" "}
                 {new Date(lastUpdated).toLocaleDateString(
                   lang === "ja" ? "ja-JP" : "en-US",
@@ -639,7 +647,7 @@ export function CardList({
             <div className="flex rounded-full overflow-hidden border border-gray-200 text-xs font-medium flex-shrink-0">
               <button
                 onClick={() => setLang("en")}
-                className={`px-2.5 py-1 transition-colors ${
+                className={`px-3 py-2 transition-colors ${
                   lang === "en"
                     ? "bg-blue-600 text-white"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -649,7 +657,7 @@ export function CardList({
               </button>
               <button
                 onClick={() => setLang("ja")}
-                className={`px-2.5 py-1 transition-colors ${
+                className={`px-3 py-2 transition-colors ${
                   lang === "ja"
                     ? "bg-blue-600 text-white"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -673,7 +681,7 @@ export function CardList({
                     setNavigating(s.code);
                     router.push(`/?set=${s.code}`);
                   }}
-                  className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
+                  className={`px-3 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
                     isActive
                       ? "bg-blue-600 text-white"
                       : isLoading
@@ -713,10 +721,10 @@ export function CardList({
       <div
         className={`pt-24 md:pt-28 grid gap-4 md:gap-8 transition-opacity duration-200 ${navigating ? "opacity-40 pointer-events-none" : ""}`}
       >
-        {initialCards.map((card) => (
+        {filteredCards.map((card) => (
           <div
             key={card.id}
-            className={`bg-white p-4 md:p-6 rounded-lg shadow-md border border-gray-100${matchedIds.has(card.id) ? "" : " hidden"}`}
+            className="bg-white p-4 md:p-6 rounded-lg shadow-md border border-gray-100"
           >
             <CardRow
               card={card}
@@ -727,9 +735,9 @@ export function CardList({
           </div>
         ))}
 
-        {matchedIds.size === 0 && (
+        {filteredCards.length === 0 && (
           <div className="text-center py-20 bg-white rounded-lg shadow-inner border-2 border-dashed border-gray-200">
-            <div className="text-gray-400 text-lg font-medium">
+            <div className="text-gray-500 text-lg font-medium">
               {t("noResults", lang, { q: search })}
             </div>
             <button

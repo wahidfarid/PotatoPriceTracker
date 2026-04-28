@@ -18,11 +18,15 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem("pt-lang");
-    if (stored === "ja") setLangState("ja");
+    if (stored === "ja") {
+      setLangState("ja");
+      document.documentElement.lang = "ja";
+    }
   }, []);
 
   const setLang = (l: Lang) => {
     localStorage.setItem("pt-lang", l);
+    document.documentElement.lang = l;
     setLangState(l);
   };
 
