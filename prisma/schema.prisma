@@ -21,6 +21,9 @@ model Card {
   nameJa   String?
   oracleId String?
   variants CardVariant[]
+
+  @@index([name])
+  @@index([nameJa])
 }
 
 model CardVariant {
@@ -39,6 +42,8 @@ model CardVariant {
   prices          Price[]
 
   @@unique([setCode, collectorNumber, language, finish])
+  @@index([cardId])
+  @@index([setCode])
 }
 
 model Price {
