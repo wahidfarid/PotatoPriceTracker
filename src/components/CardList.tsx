@@ -11,8 +11,16 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { PriceHistoryModal } from "./PriceHistoryModal";
+import dynamic from "next/dynamic";
 import { SparklineChart } from "./SparklineChart";
+
+const PriceHistoryModal = dynamic(
+  () =>
+    import("./PriceHistoryModal").then((m) => ({
+      default: m.PriceHistoryModal,
+    })),
+  { ssr: false },
+);
 import { useLanguage } from "@/lib/LanguageContext";
 import { t, finishBadge, SET_NAMES_JA, type Lang } from "@/lib/i18n";
 

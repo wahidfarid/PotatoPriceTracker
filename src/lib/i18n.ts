@@ -32,6 +32,7 @@ export const STRINGS = {
     ja: "価格履歴の読み込みに失敗しました。もう一度お試しください。",
   },
   retry: { en: "Retry", ja: "再試行" },
+  close: { en: "Close", ja: "閉じる" },
   noPriceHistory: {
     en: "No price history available",
     ja: "価格履歴はありません",
