@@ -54,6 +54,14 @@ function buildVariantInfo(
 }
 
 export async function POST(req: Request) {
+  const contentLength = Number(req.headers.get("content-length") ?? 0);
+  if (contentLength > 256 * 1024) {
+    return NextResponse.json(
+      { error: "Request too large (max 256 KB)" },
+      { status: 413 },
+    );
+  }
+
   let body: { lines: ParsedLine[] };
   try {
     body = await req.json();
@@ -61,7 +69,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const lines: ParsedLine[] = body?.lines ?? [];
+  const lines = body?.lines;
   if (!Array.isArray(lines)) {
     return NextResponse.json(
       { error: "lines must be an array" },
@@ -77,6 +85,27 @@ export async function POST(req: Request) {
   if (lines.length === 0) {
     return NextResponse.json({ rows: [] });
   }
+
+  for (const line of lines) {
+    if (
+      typeof line !== "object" ||
+      line === null ||
+      typeof line.name !== "string" ||
+      line.name.length > 200 ||
+      (line.setCode !== undefined &&
+        (typeof line.setCode !== "string" || line.setCode.length > 8)) ||
+      (line.collectorNumber !== undefined &&
+        (typeof line.collectorNumber !== "string" ||
+          line.collectorNumber.length > 16))
+    ) {
+      return NextResponse.json(
+        { error: "Invalid line shape" },
+        { status: 400 },
+      );
+    }
+  }
+
+  const validatedLines = lines as ParsedLine[];
 
   // ── Query 1: all variants with their card (no prices) ──────────────────────
   const allVariants = (await prisma.cardVariant.findMany({
@@ -94,7 +123,7 @@ export async function POST(req: Request) {
   const lineMatches: LineMatch[] = [];
   const candidateIds = new Set<string>();
 
-  for (const line of lines) {
+  for (const line of validatedLines) {
     let candidates: RawVariant[];
     let fallbackNote: ResolvedRow["fallbackNote"] = null;
     let tokenLocked = false;

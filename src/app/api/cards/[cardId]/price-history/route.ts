@@ -12,6 +12,10 @@ export async function GET(
     const resolvedParams = await Promise.resolve(params);
     const cardId = resolvedParams.cardId;
 
+    if (!cardId || cardId.length > 64) {
+      return NextResponse.json({ error: "Invalid card ID" }, { status: 400 });
+    }
+
     // Get all variants for this card
     const variants = await prisma.cardVariant.findMany({
       where: { cardId },
