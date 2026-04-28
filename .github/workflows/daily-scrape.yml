@@ -2,8 +2,8 @@ name: Daily Price Scrape
 
 on:
   schedule:
-    # Daily at midnight UTC (9 AM JST)
-    - cron: "0 0 * * *"
+    # Daily at 00:07 UTC (9:07 AM JST) — avoid busy :00 slot on GH Actions
+    - cron: "7 0 * * *"
   workflow_dispatch: # Allow manual trigger
 
 jobs:
@@ -39,7 +39,8 @@ jobs:
           response=$(curl -sS -o /tmp/resp -w "%{http_code}" -X POST \
             -H "x-vercel-protection-bypass: ${{ secrets.VERCEL_BYPASS_TOKEN }}" \
             -H "x-vercel-set-bypass-cookie: samesitenone" \
-            "${{ secrets.VERCEL_URL }}/api/revalidate?secret=${{ secrets.REVALIDATION_SECRET }}")
+            -H "x-revalidate-secret: ${{ secrets.REVALIDATION_SECRET }}" \
+            "${{ secrets.VERCEL_URL }}/api/revalidate")
           echo "HTTP $response"
           cat /tmp/resp
           test "$response" = "200"

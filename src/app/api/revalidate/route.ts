@@ -2,10 +2,17 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const secret = searchParams.get("secret");
+  const provided = request.headers.get("x-revalidate-secret") ?? "";
+  const expected = process.env.REVALIDATION_SECRET ?? "";
 
-  if (secret !== process.env.REVALIDATION_SECRET) {
+  if (
+    !expected ||
+    provided.length !== expected.length ||
+    !require("crypto").timingSafeEqual(
+      Buffer.from(provided),
+      Buffer.from(expected),
+    )
+  ) {
     return NextResponse.json({ error: "Invalid secret" }, { status: 401 });
   }
 
