@@ -19,6 +19,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const stored = localStorage.getItem("pt-lang");
     if (stored === "ja") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLangState("ja");
       document.documentElement.lang = "ja";
     }

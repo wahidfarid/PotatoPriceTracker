@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "crypto";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
@@ -8,10 +9,7 @@ export async function POST(request: Request) {
   if (
     !expected ||
     provided.length !== expected.length ||
-    !require("crypto").timingSafeEqual(
-      Buffer.from(provided),
-      Buffer.from(expected),
-    )
+    !timingSafeEqual(Buffer.from(provided), Buffer.from(expected))
   ) {
     return NextResponse.json({ error: "Invalid secret" }, { status: 401 });
   }
