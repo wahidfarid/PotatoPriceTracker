@@ -48,6 +48,7 @@ prisma/*.db-journal
 prisma/*.db.backup-*
 
 # Turso migration artifacts
+backup.sql
 data_only.sql
 dump.sql
 import.sql
@@ -55,3 +56,10 @@ ordered_import.sql
 schema_only.sql
 build_import.sh
 price_chunk_*
+
+# Debug/inspect script outputs
+inspect_*.html
+debug_*.html
+debug_*.png
+dev.log
+dev.db
