@@ -7,21 +7,8 @@ test.describe("price history modal", () => {
     // Wait for the card list to render
     await page.waitForSelector('[class*="pt-24"], [class*="pt-28"]');
 
-    // Sparklines render as inline-block divs with a border — both the empty
-    // placeholder and the real SVG chart are wrapped in the same container div.
-    // title attribute values come from i18n: "sparklineClick" or "sparklineEmpty".
-    const sparkline = page
-      .locator("div[title]")
-      .filter({ hasText: /^-$/ })
-      .or(page.locator("div > svg").locator(".."))
-      .first();
-
-    // Broader fallback: any clickable inline-block div inside a table cell
-    const anySparkline = page
-      .locator("td div.inline-block.cursor-pointer")
-      .first();
-
-    const target = (await sparkline.count()) > 0 ? sparkline : anySparkline;
+    // SparklineChart renders as an inline-block cursor-pointer div inside a <td>
+    const target = page.locator("td div.inline-block.cursor-pointer").first();
 
     await expect(target).toBeVisible({ timeout: 5000 });
     await target.click();
