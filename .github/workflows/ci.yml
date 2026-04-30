@@ -104,7 +104,7 @@ jobs:
         env:
           DATABASE_URL: "file:./prisma/dev.db"
         run: |
-          npx prisma migrate deploy
+          npx prisma db push
           npx tsx prisma/seed.ts
           npx tsx tests/fixtures/seed-e2e.ts
 
