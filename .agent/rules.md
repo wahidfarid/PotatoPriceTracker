@@ -23,7 +23,7 @@ These rules are derived from the user's feedback and preferred interaction style
   - Base text size should be `text-sm` (slightly larger than standard Next.js default).
   - Use fixed headers/search bars for navigation in large lists.
 - **Commenting**: Do not add code comments unless explicitly requested.
-- **Stability**: When doing any code changes, always avoid regressions. **Always run `npm run build` locally** to verify TypeScript integrity before suggesting a deployment.
+- **Stability**: When doing any code changes, always avoid regressions. The pre-commit hook automatically runs lint-staged (ESLint + Prettier on staged files) and `tsc --noEmit` on every commit. Before suggesting a deployment, also run `npm run test:run` and `npm run build` to catch anything the hook doesn't cover.
 - **Terminology**: Use customer-centric labels in UI: **Buying** (Price paid to shop) and **Selling** (Price received from shop).
 
 ## 4. Workflows
@@ -35,12 +35,12 @@ These rules are derived from the user's feedback and preferred interaction style
 - **Schema changes**: `prisma db push` only updates local SQLite (`prisma/dev.db`). Turso requires a separate migration — either `turso db shell <db-name> "ALTER TABLE ..."` (requires `turso auth login`) or via the libsql client directly using env credentials. Always do both.
 - **Scraping**: Normalize collector numbers (remove leading zeros) for matching.
 - **Testing**: Use debug scripts (e.g., `scripts/debug_*.ts`) to isolate matching issues before running full-set crawls.
+- **ESLint scope**: `npm run lint` only covers `src/`. The `scripts/` directory is excluded via `globalIgnores` in `eslint.config.mjs` and lint-staged respects this. Do not add `scripts/` to any lint step.
 
 ## 5. Artifact Usage
 
-- maintain `task.md` with incremental checkbox updates.
-- Use `implementation_plan.md` for major changes and wait for approval.
-- Provide a `walkthrough.md` after successful verification.
+- Use Claude's built-in plan mode for major changes (plan file is created automatically; wait for user approval before implementing).
+- For minor changes, proceed directly with a brief explanation.
 
 ## 6. Knowledge Maintenance
 
