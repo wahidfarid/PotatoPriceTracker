@@ -23,7 +23,7 @@ type LatestPrice = {
   timestamp: bigint | string;
 };
 
-async function _getDashboardData(setCode: string) {
+export async function _getDashboardData(setCode: string) {
   const cards = await prisma.card.findMany({
     where: {
       variants: {

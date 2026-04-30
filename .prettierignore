@@ -1,0 +1,10 @@
+.next
+node_modules
+prisma/*.db
+prisma/*.db-journal
+prisma/*.db.backup-*
+*.tsbuildinfo
+coverage
+playwright-report
+test-results
+backup.sql
