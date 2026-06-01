@@ -29,7 +29,8 @@ A specialized price tracking application for Magic: The Gathering, currently tra
 3. **Variants**: Every card has 4 variants in the DB: EN/JP and Foil/Non-Foil.
 4. **Shops**:
    - **Hareruya**: Active full-set scraper (`hareruya_set.ts`). Tracks **Buying** (Shop's Selling Price) and **Selling** (Shop's Kaitori/Buyback Price) + Stock levels.
-   - **CardRush**: Implementation started but suffers from timeouts/anti-bot.
+   - **CardRush**: Active scraper — `cardrush_set.ts` (Buying) + `cardrush_kaitori.ts` (Selling), wired into `scripts/run-scraper.ts`. Historically had anti-bot/timeout issues.
+   - **BigMagic**: Seeded as a shop (`prisma/seed.ts`) and surfaced in bulk-price results, but no active scraper yet (only `scripts/inspect_bigmagic.ts`).
 
 ## Database Schema
 
@@ -47,3 +48,6 @@ A specialized price tracking application for Magic: The Gathering, currently tra
 - Support for ECL, ECC, SPG (year:2026), TMT, TMC, PZA, SOS, SOC, and SOA.
 - **Deployment**: Turso (libSQL) in production; local `prisma/dev.db` (SQLite) for development. Data layer in `src/lib/data.ts` uses `unstable_cache` with a 24h TTL keyed by set code. **No Prisma migration files exist** — always use `prisma db push` to sync schema to local SQLite. Never use `prisma migrate deploy` (it silently no-ops without migration files, leaving tables uncreated).
 - **Bulk Price Lookup** (`/bulk`): Page accepting MTG Arena-format deck lists (paste text or import Moxfield `.csv`). Parses `qty name (SET) CN *F*` tokens, matches against all tracked sets, returns per-card prices (Hareruya + CardRush Buy/Sell) sorted by max kaitori × qty desc. Moxfield CSV `Language` column is read and used to prefer EN/JP variants. Inline variant picker for ambiguous name-only matches. Sideboard entries merged by variant. Key files: `src/lib/bulk-parser.ts`, `src/components/BulkPricer.tsx`, `src/app/api/bulk-price/route.ts`.
+- **Automation**: `daily-scrape.yml` (cron 00:07 UTC) runs `npx tsx scripts/run-scraper.ts` for all shops, then POSTs `/api/revalidate` (Discord webhook on failure). `seed-scryfall.yml` is manual (`workflow_dispatch`). These are separate from `ci.yml` (the 4 PR/push jobs).
+- **API routes**: `/api/bulk-price`, `/api/revalidate` (secret-gated via `REVALIDATION_SECRET`, calls `revalidateTag("dashboard-data")` + `revalidatePath("/")`), `/api/cards/[cardId]/price-history`, `/api/variants/[variantId]/price-history` (supports `?sparkline=true`).
+- **Docs**: `docs/architecture.md` holds Mermaid diagrams (system topology, dashboard read path, daily-scrape write path, ER model, bulk-pricing flow, dual-mode Prisma, CI pipeline).
