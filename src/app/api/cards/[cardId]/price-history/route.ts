@@ -27,6 +27,7 @@ export async function GET(
     }
 
     const variantIds = variants.map((v) => v.id);
+    const averagesParam = request.url.includes("averages=true");
 
     // Fetch all prices for all variants in one query
     const prices = await prisma.price.findMany({
@@ -39,23 +40,9 @@ export async function GET(
       orderBy: { timestamp: "asc" },
     });
 
-    // Group prices by variant, then by day (keeping last price per day)
-    const result: Record<
-      string,
-      Array<{
-        timestamp: string;
-        priceYen: number;
-        buyPriceYen: number | null;
-        shopName: string;
-      }>
-    > = {};
+    const result: Record<string, any> = {};
 
-    // Initialize result object for each variant
-    variantIds.forEach((variantId) => {
-      result[variantId] = [];
-    });
-
-    // Group by variant
+    // Group prices by variant
     const pricesByVariant = new Map<string, typeof prices>();
     prices.forEach((price) => {
       if (!pricesByVariant.has(price.variantId)) {
@@ -70,7 +57,9 @@ export async function GET(
 
       variantPrices.forEach((price) => {
         const dayKey = format(new Date(price.timestamp), "yyyy-MM-dd");
-        const shopDayKey = `${dayKey}-${price.shop.name}`;
+        const shopDayKey = price.shop
+          ? `${dayKey}-${price.shop.name}`
+          : `deleted-shop-${dayKey}`;
         const existing = dailyPrices.get(shopDayKey);
         if (
           !existing ||
@@ -80,17 +69,53 @@ export async function GET(
         }
       });
 
-      result[variantId] = Array.from(dailyPrices.values())
+      const pricesData = Array.from(dailyPrices.values())
         .map((p) => ({
           timestamp: p.timestamp.toISOString(),
           priceYen: p.priceYen,
           buyPriceYen: p.buyPriceYen,
-          shopName: p.shop.name,
+          shopName: p.shop?.name || "Unknown",
         }))
         .sort(
           (a, b) =>
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
         );
+
+      if (averagesParam) {
+        const dailyAverages = Object.values(
+          Array.from(dailyPrices.values()).reduce(
+            (acc, p) => {
+              const dayKey = format(new Date(p.timestamp), "yyyy-MM-dd");
+              if (!acc[dayKey]) {
+                acc[dayKey] = {
+                  totalYen: 0,
+                  count: 0,
+                  timestamp: p.timestamp.toISOString(),
+                };
+              }
+              acc[dayKey].totalYen += p.priceYen;
+              acc[dayKey].count += 1;
+              return acc;
+            },
+            {} as Record<
+              string,
+              { totalYen: number; count: number; timestamp: string }
+            >,
+          ),
+        )
+          .map((group) => ({
+            timestamp: group.timestamp,
+            priceYen: group.totalYen / group.count,
+          }))
+          .sort(
+            (a, b) =>
+              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+          );
+
+        result[variantId] = { prices: pricesData, dailyAverages };
+      } else {
+        result[variantId] = { prices: pricesData, dailyAverages: [] };
+      }
     });
 
     return NextResponse.json(result);

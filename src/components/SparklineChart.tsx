@@ -48,14 +48,19 @@ export function SparklineChart({
     );
   }
 
-  // Calculate min/max for Y-axis scaling
+  // Calculate min/max for Y-axis scaling with a 10% buffer
   const prices = validData.map((d) => d.price);
-  const minPrice = Math.min(...prices);
-  const maxPrice = Math.max(...prices);
-  const priceRange = maxPrice - minPrice || 1; // Avoid division by zero
+  const minPriceRaw = Math.min(...prices);
+  const maxPriceRaw = Math.max(...prices);
+  const priceRange = maxPriceRaw - minPriceRaw || 1;
 
-  // Generate SVG polyline points with 2px padding
-  const padding = 2;
+  const buffer = priceRange * 0.1;
+  const minPrice = minPriceRaw - buffer;
+  const maxPrice = maxPriceRaw + buffer;
+  const effectiveRange = maxPrice - minPrice;
+
+  // Generate SVG polyline points with increased padding
+  const padding = 5;
   const chartWidth = width - padding * 2;
   const chartHeight = height - padding * 2;
 
@@ -66,7 +71,7 @@ export function SparklineChart({
           ? padding + chartWidth / 2
           : padding + (index / (validData.length - 1)) * chartWidth;
       const y =
-        padding + (1 - (point.price - minPrice) / priceRange) * chartHeight;
+        padding + (1 - (point.price - minPrice) / effectiveRange) * chartHeight;
       return `${x},${y}`;
     })
     .join(" ");

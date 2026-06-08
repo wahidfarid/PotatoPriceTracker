@@ -19,6 +19,7 @@ export async function GET(
 
   const { searchParams } = new URL(request.url);
   const sparkline = searchParams.get("sparkline") === "true";
+  const averages = searchParams.get("averages") === "true";
 
   const prices = await prisma.price.findMany({
     where: { variantId },
@@ -49,13 +50,58 @@ export async function GET(
         new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
     );
 
-  // For sparklines, limit to last 30 days or last 30 data points (whichever is smaller)
   if (sparkline) {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     result = result
       .filter((p) => new Date(p.timestamp) >= thirtyDaysAgo)
-      .slice(-30); // Take last 30 points max
+      .slice(-30);
+  }
+
+  if (averages) {
+    const dailyAverages = Object.values(
+      Array.from(dailyPrices.values()).reduce(
+        (acc, p) => {
+          const dayKey = format(new Date(p.timestamp), "yyyy-MM-dd");
+          if (!acc[dayKey]) {
+            acc[dayKey] = {
+              totalYen: 0,
+              count: 0,
+              timestamp: p.timestamp.toISOString(),
+            };
+          }
+          acc[dayKey].totalYen += p.priceYen;
+          acc[dayKey].count += 1;
+          return acc;
+        },
+        {} as Record<
+          string,
+          { totalYen: number; count: number; timestamp: string }
+        >,
+      ),
+    )
+      .map((group) => ({
+        timestamp: group.timestamp,
+        priceYen: group.totalYen / group.count,
+      }))
+      .sort(
+        (a, b) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+      );
+
+    if (sparkline) {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const filteredAverages = dailyAverages.filter(
+        (p) => new Date(p.timestamp) >= thirtyDaysAgo,
+      );
+      return NextResponse.json({
+        prices: result,
+        dailyAverages: filteredAverages.slice(-30),
+      });
+    }
+
+    return NextResponse.json({ prices: result, dailyAverages });
   }
 
   return NextResponse.json(result);

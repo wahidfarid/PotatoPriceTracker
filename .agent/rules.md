@@ -45,4 +45,8 @@ These rules are derived from the user's feedback and preferred interaction style
 ## 6. Knowledge Maintenance
 
 - If the user provides clear context or preferences, **ask for permission** before adding that information to `.agent/context.md` or `.agent/rules.md`.
-- After updating these files with permission, recap the changes to confirm.
+
+## 7. Cleanup & Workspace Hygiene
+
+- **Artifact Removal**: Before ending a session, performing a `wrap-up`, or committing changes, ensure all session-specific artifacts are removed. This includes, but is not limited to, `.diff` files, temporary log files, or debug output files (e.g., `staged_changes.diff`) that were created during the session.
+- **Clean State**: Always leave the repository in a clean and readable state. If you created temporary files for testing or investigation, delete them before finishing.
