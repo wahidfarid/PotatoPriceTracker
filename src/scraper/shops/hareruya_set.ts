@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { detectFinish } from "../utils/detectFinish";
+import { createManyChanged } from "../utils/dedup-insert";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -194,9 +195,13 @@ export async function scrapeHareruyaSet(setCode: string, prisma: PrismaClient) {
   }
 
   if (pricesToCreate.length > 0) {
-    await prisma.price.createMany({ data: pricesToCreate });
+    const inserted = await createManyChanged(
+      prisma,
+      pricesToCreate,
+      `Hareruya ${setCode}`,
+    );
     console.log(
-      `[Hareruya] Created ${pricesToCreate.length} price records for ${setCode}`,
+      `[Hareruya] Created ${inserted} new price records for ${setCode} (${pricesToCreate.length - inserted} unchanged)`,
     );
   }
 }
