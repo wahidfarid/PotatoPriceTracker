@@ -63,3 +63,4 @@ debug_*.html
 debug_*.png
 dev.log
 dev.db
+auth*
