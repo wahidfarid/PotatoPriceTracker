@@ -1,7 +1,7 @@
 // src/scraper/utils/dedup-insert.ts — Only insert Price rows that differ from latest
 // Replaces prisma.price.createMany() with a version that skips unchanged prices.
 
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient, Prisma } from "@prisma/client";
 
 interface PriceInput {
   variantId: string;
@@ -13,8 +13,17 @@ interface PriceInput {
   sellSourceUrl?: string | null;
 }
 
+type LatestRow = {
+  variantId: string;
+  shopId: string;
+  priceYen: number;
+  buyPriceYen: number | null;
+  stock: number;
+};
+
 /**
  * Insert only the Price rows that differ from the latest row per (variantId, shopId).
+ * Uses a single batched raw query to fetch all latest prices, avoiding N+1.
  * Returns the number of rows actually inserted.
  */
 export async function createManyChanged(
@@ -24,27 +33,39 @@ export async function createManyChanged(
 ): Promise<number> {
   if (prices.length === 0) return 0;
 
-  // Get unique (variantId, shopId) pairs
-  const pairs = [
-    ...new Set(prices.map((p) => `${p.variantId}|${p.shopId}`)),
-  ].map((s) => s.split("|"));
+  // Build unique (variantId, shopId) pairs for the IN clause
+  const pairSet = new Set(prices.map((p) => `${p.variantId}|${p.shopId}`));
+  const pairEntries = [...pairSet].map((s) => s.split("|"));
 
-  // Fetch latest price for each pair individually (safe, parameterized)
-  const latestMap = new Map<
-    string,
-    { priceYen: number; buyPriceYen: number | null; stock: number }
-  >();
+  // Build a VALUES table for the pairs to join against
+  // SQLite doesn't support tuple IN with composite keys, so we use a VALUES clause
+  const valueRows = pairEntries
+    .map(([vid, sid]) => `('${vid}','${sid}')`)
+    .join(",\n");
 
-  for (const [variantId, shopId] of pairs) {
-    const rows = await prisma.price.findMany({
-      where: { variantId, shopId },
-      orderBy: { timestamp: "desc" },
-      take: 1,
-      select: { priceYen: true, buyPriceYen: true, stock: true },
-    });
-    if (rows.length > 0) {
-      latestMap.set(`${variantId}|${shopId}`, rows[0]);
-    }
+  // Batch fetch: get the latest Price row for each (variantId, shopId) in one query
+  const latestRows = valueRows
+    ? await prisma.$queryRawUnsafe<LatestRow[]>(`
+        WITH pairs(variantId, shopId) AS (
+          VALUES ${valueRows}
+        ),
+        latest AS (
+          SELECT p.variantId, p.shopId, p.priceYen, p.buyPriceYen, p.stock,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY p.variantId, p.shopId
+                   ORDER BY p.timestamp DESC
+                 ) as rn
+          FROM Price p
+          JOIN pairs ON p.variantId = pairs.variantId AND p.shopId = pairs.shopId
+        )
+        SELECT variantId, shopId, priceYen, buyPriceYen, stock
+        FROM latest WHERE rn = 1
+      `)
+    : ([] as LatestRow[]);
+
+  const latestMap = new Map<string, LatestRow>();
+  for (const row of latestRows) {
+    latestMap.set(`${row.variantId}|${row.shopId}`, row);
   }
 
   const changed: typeof prices = [];

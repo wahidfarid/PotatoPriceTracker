@@ -3,8 +3,7 @@
 
 import { createClient } from "@libsql/client";
 import { gzipSync } from "node:zlib";
-import { writeFileSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { writeFileSync } from "node:fs";
 
 async function main() {
   const rawUrl = process.env.TURSO_DATABASE_URL;
